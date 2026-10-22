@@ -1,0 +1,16 @@
+name: iron-seas-ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 全量验收
+        run: node test/run-all.mjs
+      - name: 黄金种子回归
+        run: node test/golden.seed.test.mjs

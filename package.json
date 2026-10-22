@@ -6,6 +6,10 @@
   "description": "铁海 1942 — 极重真实感二战海战模拟器（零依赖，原生 ESM）",
   "scripts": {
     "start": "node server/serve.mjs",
-    "headless": "node server/headless.mjs"
+    "headless": "node server/headless.mjs",
+    "test": "node test/run-all.mjs",
+    "test:golden": "node test/golden.seed.test.mjs",
+    "golden:update": "node tools/golden.mjs --update",
+    "uicheck": "node tools/uicheck.mjs --suite"
   }
 }

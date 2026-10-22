@@ -287,3 +287,18 @@ naval/
 ## 9. 数据来源与致谢
 
 舰船数据（`data/ships_axis.json` / `data/ships_allied.json`）逐条附 `sources` 字段，来源为 Wikipedia、NavWeaps、combinedfleet 等公开资料；剧本的历史背景与结局为公开战史。本项目为工程与教学用途的模拟器，参数为公开资料的工程近似，不用于作战研究。
+
+## 10. 质量门禁与 CI
+
+| 入口 | 内容 | 命令 |
+| --- | --- | --- |
+| 全量验收 | 单元/集成/剧本/无头/UI 启动，共 20+ 项 | npm test（= node test/run-all.mjs） |
+| 黄金种子 | 固定 seed 的胜方/沉没/命中/在航不漂移 | npm run test:golden |
+| 基线重生成 | 物理改动确认后刷新基线 | npm run golden:update |
+| UI 端到端 | 无头 Chrome 真实点击/键盘/截图 | npm run uicheck |
+
+黄金种子说明：tools/golden.mjs 跑 2 个剧本 × 2 个 seed 各 900 s，把 winner / ship.sink / gun.hit / 在航数落盘到
+test/golden/baseline.json；test/golden.seed.test.mjs 按容差（胜方严格、沉没 ±1、命中 ±35%、在航 ±1）比对。
+任何物理/数值改动如果让基线漂移出容差，CI 会直接失败——这是给"进水/稳性/磨损"这类改动的护栏。
+
+本轮（A–E Wave 1）新增测试：t13 陆地遮蔽、t14 敌我识别与友军误伤、t15 AI 条令、t16 可访问性、t17 剧本触发器。
