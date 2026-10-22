@@ -119,15 +119,37 @@ flags{smokeOn, searchlight{on,bearingDeg}, radarOn, starshellArmed, engaged}
 sim.start sim.end tick.major
 ship.speed ship.course ship.collide ship.sink ship.capsize ship.launch
 gun.fire gun.salvo.away gun.hit gun.miss gun.straddle gun.penetration gun.bounce gun.nearmiss
+gun.terrain              // 炮弹落在陆地（不结算伤害）
+gun.friendlyfire         // 误击本方（victim 与射手同阵营；真打真伤）
 torp.launch torp.hit torp.miss torp.dud torp.wake
 dam.flood dam.fire dam.fire.out dam.magazine dam.subsystem dam.dc dam.list dam.flood.control
 sensor.detect sensor.lose sensor.radar.on sensor.radar.jam sensor.visual.spot sensor.smoke
+sensor.visual.blocked    // 视线被陆地截断（blockedByLand:true）
+sensor.identity          // 敌我识别状态变化（foeConfidence / misId）
 fc.solution fc.update fc.ladder
 order.issue order.effective order.reject
 ai.decision ai.connected ai.disconnected ai.fallback ai.error ai.chat
+scenario.trigger scenario.message   // 剧本触发器（见 §2.2）
 env.change env.sunset env.squall
 victory.achieved
 ```
+
+### 2.2 剧本触发器（scenario.triggers，v7）
+
+```js
+scenario.triggers = [{
+  id: 'ds_contact',            // 唯一 id（once 记账用）
+  at: 60,                      // 或 when / whenAll / whenAny（条件复用 objectives.condition schema）
+  once: true,                  // 默认 true
+  action: { kind: 'MESSAGE' | 'ORDER' | 'SET_ENV' | 'ACTIVATE_OBJECTIVE', ... },
+}]
+```
+
+- `ORDER`：`{ shipId? | side?, order, params, scope?, issuer? }`，以 `source:'SCRIPT'` 下达（受指挥延迟）。
+- `SET_ENV`：`{ windKn?, windDirDeg?, visibilityNm?, seaState? }`（海况按风浪谱反查风速）。
+- `ACTIVATE_OBJECTIVE`：`{ id? | index? }`，目标默认参与判定，`active:false` 的条目在激活前不参与。
+- 评估时机：world.step 内、AI tick 之后、checkObjectives 之前；无 triggers 时零开销。
+- 事件：`scenario.trigger`（每次触发）与 `scenario.message`（MESSAGE 动作）。
 
 ## 3.1 冻结：命中对象 Hit（ballistics.js / torpedo.js → damage.applyHit）
 

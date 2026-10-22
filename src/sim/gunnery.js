@@ -32,6 +32,106 @@
 import { clamp, normDeg, normDeg180, deg2rad, rad2deg, dist2d, bearing2d, kn2mps, mps2kn } from '../core/util.js';
 import { MIL_DEG, DEG_PER_MIL, makeShell, effectiveMv, solutionForRange } from './ballistics.js';
 
+// ---------------------------------------------------------------------------
+// 友军误伤（friendly fire）记账
+// ---------------------------------------------------------------------------
+// 1942 年没有 IFF：夜间混战里把友舰当敌舰打是会真实发生的（萨沃岛）。
+// 命中结算仍由 ballistics/damage 按 victim 处理（真打真伤）；本模块只订阅
+// gun.hit，在"射手与被害舰同阵营"时补发一条 gun.friendlyfire 供战报/AAR/统计，
+// 并轻微扣减双方士气。事件含双方、距离、原因（misId/识别置信度）与是否沉没。
+function findFiringTrack(world, shooter, victimId) {
+  const tm = world.tracks;
+  if (!tm) return null;
+  const cands = [];
+  if (Array.isArray(tm.tracks)) {
+    for (const tr of tm.tracks) {
+      if (!tr || tr.dead || tr.side !== shooter.side) continue;
+      if (tr._trueIds && tr._trueIds.has(victimId)) cands.push(tr);
+    }
+  }
+  const want = shooter.commanded && shooter.commanded.targetTrackId;
+  if (want) {
+    const hitTr = cands.find((x) => x.id === want);
+    if (hitTr) return hitTr;
+  }
+  if (cands.length) return cands[0];
+  if (want && typeof tm.byId === 'function') return tm.byId(want) || null;
+  return null;
+}
+
+export function ensureFriendlyFireHook(world) {
+  if (!world || !world.events || typeof world.events.on !== 'function') return;
+  if (world._friendlyFireHooked) return;
+  world._friendlyFireHooked = true;
+  // 被友军误击过的舰：若之后真的沉没，补发一条 followUp 事件，回答"是否沉没"
+  world._ffStruck = world._ffStruck || new Map();
+  world.events.on('ship.sink', (ev) => {
+    if (!ev || !ev.ship) return;
+    const rec = world._ffStruck.get(ev.ship);
+    if (!rec) return;
+    world._ffStruck.delete(ev.ship);
+    world.events.emit('gun.friendlyfire', Object.assign({}, rec, {
+      t: world.t, followUp: true, sunk: true, sinking: false,
+      text: rec.text + ' → 该友舰随后沉没',
+    }));
+  });
+  world.events.on('gun.hit', (ev) => {
+    if (!ev || !ev.hit) return;
+    const hit = ev.hit;
+    const shooterId = ev.byShip || hit.attackerId || hit.killerShipId || null;
+    const victimId = ev.ship || hit.victimId || null;
+    if (!shooterId || !victimId || shooterId === victimId) return;
+    const shooter = typeof world.ship === 'function' ? world.ship(shooterId) : null;
+    const victim = typeof world.ship === 'function' ? world.ship(victimId) : null;
+    if (!shooter || !victim) return;
+    if (shooter.side !== victim.side) return;   // 正常命中，不是误伤
+    const distM = dist2d(shooter.pos, victim.pos);
+    const tr = findFiringTrack(world, shooter, victimId);
+    const misId = tr ? (tr.misId || null) : null;
+    const foeConfidence = (tr && typeof tr.foeConfidence === 'number') ? +tr.foeConfidence.toFixed(2) : null;
+    const cause = misId === 'FRIEND_AS_HOSTILE' ? 'MISIDENTIFIED_FRIENDLY'
+      : (tr ? 'FRIENDLY_IN_TRACK' : 'CROSSFIRE');
+    const reason = cause === 'MISIDENTIFIED_FRIENDLY'
+      ? '把友舰当成敌舰（敌我识别置信度 ' + (foeConfidence === null ? '未知' : foeConfidence.toFixed(2)) + '）'
+      : (cause === 'FRIENDLY_IN_TRACK' ? '火控航迹落在友舰上' : '友舰进入射界/交叉火力');
+    // 士气：误击己方舰艇对舰员的心理打击是真实存在的（轻微，不改伤害主链路）
+    const before = { shooter: shooter.morale, victim: victim.morale };
+    shooter.morale = clamp((shooter.morale === undefined ? 1 : shooter.morale) - 0.03, 0.15, 1);
+    victim.morale = clamp((victim.morale === undefined ? 1 : victim.morale) - 0.05, 0.15, 1);
+    if (shooter.stats) shooter.stats.friendlyFire = (shooter.stats.friendlyFire || 0) + 1;
+    world._ffStruck = world._ffStruck || new Map();
+    if (!world._ffStruck.has(victim.id)) {
+      world._ffStruck.set(victim.id, {
+        shooter: shooter.id, shooterName: shooter.name, shooterSide: shooter.side,
+        victim: victim.id, victimName: victim.name, victimSide: victim.side, side: shooter.side,
+        cause, misId, reason,
+        text: shooter.name + ' 误击友舰 ' + victim.name + '（' + Math.round(distM) + 'm，' + reason + '）',
+      });
+    }
+    world.events.emit('gun.friendlyfire', {
+      t: world.t,
+      shooter: shooter.id, shooterName: shooter.name, shooterSide: shooter.side,
+      victim: victim.id, victimName: victim.name, victimSide: victim.side,
+      ship: victim.id, name: victim.name, byShip: shooter.id, byShipName: shooter.name,
+      side: shooter.side,
+      rangeM: Math.round((hit.rangeM || 0) > 0 ? hit.rangeM : distM),
+      distanceM: Math.round(distM),
+      ammo: hit.ammo || null, caliberMM: hit.caliberMM || null,
+      hitPart: (hit.impact && hit.impact.hitPart) || null,
+      penetrated: !!hit.penetrated, damageKind: hit.kind || 'SHELL',
+      cause, misId, trackId: tr ? tr.id : null, foeConfidence,
+      idSource: tr ? (tr.idSource || 'NONE') : null,
+      sinking: !!victim.sinking, sunk: !victim.isAfloat,
+      morale: {
+        shooter: +shooter.morale.toFixed(2), victim: +victim.morale.toFixed(2),
+        before: { shooter: +(before.shooter === undefined ? 1 : before.shooter).toFixed(2), victim: +(before.victim === undefined ? 1 : before.victim).toFixed(2) },
+      },
+      reason,
+      text: shooter.name + ' 误击友舰 ' + victim.name + '（' + Math.round(distM) + 'm，' + reason + '）',
+    });
+  });
+}
+
 // ---- 装填/随动默认值（数据库缺字段时） ----
 const DEFAULT_CYCLE_S = [
   [406, 30], [381, 26], [356, 25], [305, 20], [283, 18], [203, 11],
@@ -566,6 +666,7 @@ function buildLocalSolution(ship, battery, world, track) {
 // ---------------------------------------------------------------------------
 export function fireSalvo(ship, battery, solution, world, opts = {}) {
   if (!battery || battery.destroyed) return { fired: 0, salvoId: opts.salvoId || null };
+  ensureFriendlyFireHook(world);
   if (!battery._guns) ensureFC(ship, world);
   const fc = ship._fc;
   const ammoWant = opts.ammo || (solution && solution.ammo) || 'AP';
@@ -690,6 +791,8 @@ function tryFire(ship, world, dt, primary, targetShip, track) {
   const now = world.t;
   if (!ship.commanded || !ship.commanded.firing) return;
   if (ship.commanded.salvoes !== undefined && ship.commanded.salvoes <= 0) { ship.commanded.firing = false; return; }
+  // 已确认为友舰的航迹不得开火（识不清时照常开火，见 updateFireControl 的注释）
+  if (track && track.hostile === false && !(ship.commanded.overrideFriendly === true)) return;
   if (now - fc.lastSalvoT < 1.5) return;
   const role = ship.commanded.fireBattery === 'secondary' ? 'secondary' : 'main';
   const allBats = (role === 'main' ? (ship.mainBatteries || []) : (ship.secondaryBatteries || []))
@@ -818,12 +921,34 @@ function tryFire(ship, world, dt, primary, targetShip, track) {
 // ---------------------------------------------------------------------------
 export function updateFireControl(ship, world, dt) {
   if (!ship || !ship.isAfloat) return;
+  ensureFriendlyFireHook(world);
   const fc = ensureFC(ship, world);
   const now = world.t;
   const cmd = ship.commanded || {};
   const trackId = cmd.targetTrackId || null;
   let track = trackId ? world.tracks.byId(trackId) : null;
   if (track && (track.side && track.side !== ship.side)) track = null;
+  // —— 敌我识别闸门 ——
+  // 识别不清楚（hostile=true、foeConfidence 低）时照常开火：那正是 1942 年夜间误伤的来源；
+  // 但一旦目视看清舰型/旗号、确认是友舰（hostile=false），必须停火。
+  // 玩家仍可用 commanded.overrideFriendly=true 强制（例如蓄意处置）。
+  if (track && track.hostile === false && !(cmd.overrideFriendly === true)) {
+    if (ship.commanded && ship.commanded.firing) {
+      ship.commanded.firing = false;
+      if (!ship._friendlyHoldNotified) {
+        ship._friendlyHoldNotified = true;
+        world.events.emit('fc.update', {
+          t: now, ship: ship.id, side: ship.side, kind: 'TARGET_FRIENDLY',
+          trackId: track.id, text: '目标已识别为友舰，停止射击',
+          foeConfidence: track.foeConfidence !== undefined ? +track.foeConfidence.toFixed(2) : null,
+          idSource: track.idSource || 'NONE',
+        });
+      }
+    }
+    track = null;
+  } else if (track) {
+    ship._friendlyHoldNotified = false;
+  }
   const trackFresh = !!(track && (track.ageS === undefined || track.ageS < 60));
   let targetShip = trackFresh ? resolveTargetShip(world, ship, track) : null;
   if (targetShip && !targetShip.isAfloat) { ship.commanded.firing = false; targetShip = null; }

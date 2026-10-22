@@ -21,7 +21,16 @@
 // 6) 型号识别：对目标特征（雷达 RCS、目视舷侧投影面积、桅高）做对数正态似然，
 //    在 DD/CL/CA/BC/BB/CV 六类间求后验。观测越多、置信度越高，识别从 UNKNOWN →
 //    粗分类（小型/中型/大型）→ 具体舰型演进；雷达只能给 RCS，目视给面积与桅高。
-// 7) 随机数只走 world.rng（本模块不抽随机，观测噪声在传感器侧生成）。
+// 7) 敌我识别（1942 年没有 IFF）：雷达/声呐/无线电测向只能给出位置与运动要素，对
+//    "这是敌舰还是友舰"没有任何信息量；只有目视（舰影轮廓、烟囱/炮塔布局、旗号、
+//    探照灯照射）才可能分辨敌我。hostile 因此是"识别结果"而不是"生成即定"：
+//    不明目标按 1942 年条令先当敌舰处理（默认 hostile=true），随后目视证据会把
+//    它改判为友舰或确认敌舰；低质量目视（夜色/远距/混战/艉向）可能认错。
+//    · foeConfidence：敌我判定置信度 0..1（与 idConfidence 的"型号识别"分开）；
+//    · misId：真值与当前认知不一致时记账 'FRIEND_AS_HOSTILE' | 'HOSTILE_AS_FRIEND'
+//      （真值仅供 AAR/测试/调试，绝不进入 _viewFor 的战术视图——战场上没人知道真值）；
+//    · idSource：敌我判断的来源（VISUAL 才可能 / RADAR·SONAR·HFDF 只给位置 / SCRIPT 剧本）。
+// 8) 随机数只走 world.rng（本模块不抽随机，观测噪声在传感器侧生成；敌我误判抽样除外）。
 import { clamp, normDeg, normDeg180, dist2d, bearing2d, destPoint, aspectAngle, deg2rad, rad2deg, mps2kn } from '../core/util.js';
 
 let TSEQ = 0;
@@ -43,11 +52,38 @@ const SRC_GAIN = { RADAR: 0.06, VISUAL: 0.10, SONAR: 0.06, HFDF: 0.03, WAKE: 0.0
 const SRC_INFO = { RADAR: 1.0, VISUAL: 1.25, SONAR: 0.8, HFDF: 0.4, WAKE: 0.7, SCRIPT: 2.0 };
 // 判型信息量：识别需要持续观测 60–300 s；雷达只能估 RCS，目视信息更多
 const SRC_ID_INFO = { RADAR: 0.35, VISUAL: 0.8, SONAR: 0.3, HFDF: 0.15, WAKE: 0.2, SCRIPT: 1.0 };
+
+// ── 敌我识别参数（1942 无 IFF；只有目视能分辨敌我）────────────────────────────
+const ID_BELIEF_MIN = 0.12;    // 首次下"敌/友"判断所需的敌我置信度
+const ID_EV_SCALE = 2.5;       // 目视证据累积尺度（证据越多置信度越高）
+const ID_MAX_CONF = 0.97;
+const ID_CERTAIN_Q = 0.50;     // 单次目视质量（近距/白天/探照灯）达到此值 → 直接认准真实身份
+const ID_FIX_EVIDENCE = 1.5;   // 持续目视累计证据达到此值…
+const ID_FIX_QUALITY = 0.15;   // …且单次质量达到此值 → 足以认清真实身份（纠正误判）
+const ID_FRIEND_CERTAIN = 0.35; // "确认为友舰"所需置信度：低置信度的"像是友舰"仍保持警惕
+const OWN_KNOWN_RANGE_NIGHT_M = 3200;  // 夜间无照明：编队内相互识别距离
+const OWN_KNOWN_RANGE_DAY_M = 12000;   // 白天：编队/舰型辨识可靠距离
+const OWN_CONTACT_MAX_LIGHT = 0.35;    // 光照达到此值后编队识别可靠：友舰不会成为"不明接触"
+
 const VISIBLE_AGE_S = 150;   // 超过此龄的航迹不参与战术显示
 const LOSE_AGE_S = 35;       // 无更新 35 s 判失跟
 const REACQUIRE_AGE_S = 240; // 240 s 内仍可重捕
 const REMOVE_AGE_S = 900;
 const RADIO_HORIZON_M = 4122; // 4.12 km/√m
+
+// 同阵营舰船在这条距离内"编队识别清晰"，不会成为不明接触（sensors.js 使用）。
+// 白天 12 km（舰型/旗号可辨 + 编队位置可靠）；夜间无照明只有 3.2 km；
+// 黄昏/月光按光照线性过渡。超出这条线的友舰才可能被 CIC 当作来历不明的接触。
+export function ownFleetKnownRangeM(light) {
+  const l = clamp(light === undefined || light === null ? 1 : light, 0, 1);
+  const t = clamp((l - 0.02) / 0.28, 0, 1);
+  return OWN_KNOWN_RANGE_NIGHT_M + (OWN_KNOWN_RANGE_DAY_M - OWN_KNOWN_RANGE_NIGHT_M) * t;
+}
+// 光照达到此值后编队识别可靠：友舰不会进入航迹（白天绝不误伤）。
+export function ownContactUncertainAt(light) {
+  const l = clamp(light === undefined || light === null ? 1 : light, 0, 1);
+  return l < OWN_CONTACT_MAX_LIGHT;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // 4×4 矩阵工具（行主序）
@@ -240,7 +276,13 @@ export class TrackManager {
         errM: 0, errDeg: 1, errMajorM: 0, errMinorM: 0, errOrientationDeg: 0,
         confidence: 0.35, idConfidence: 0, classifiedAs: 'UNKNOWN', classProbs: null,
         sources: [], sourceShips: [], lastObsByShip: {}, obsTimesByShip: {}, firstObsByShip: {},
+        // ── 敌我识别（认知）与真值台账 ──
+        // hostile 是"本舰认为它是不是敌舰"；默认按 1942 条令把不明目标当敌舰，
+        // 随后目视识别可以改判/纠正。trueSide 只用于记录误判（misId），不参与战术视图。
         hostile: obs.hostile === false ? false : true,
+        foeConfidence: 0, idSource: 'NONE', misId: null, trueSide: null,
+        _trueSides: null, _idEv: 0, _idFixEv: 0, _bestIdQ: 0, _idBelief: null,
+        _idScripted: obs.srcKind === 'SCRIPT' || obs.hostile === false,
         tFirst: now, tLast: now, ageS: 0, hits: 0, lost: false,
         bearingOnly: !!bearingOnly, hasRange: !bearingOnly,
         info: 0, _idInfo: 0, _bias: {}, lastObsRangeM: null,
@@ -268,6 +310,8 @@ export class TrackManager {
       tr.P = stabilizeCov(P) || P;
       this._refreshUncertainty(tr);
       this._classify(tr);
+      this._noteTruth(tr, obs);
+      this._updateIdentity(tr, obs, now);
       this.tracks.push(tr);
       this._emit('sensor.detect', {
         t: this.world ? this.world.t : now, side: tr.side, ship: obs.shipId || null,
@@ -275,6 +319,7 @@ export class TrackManager {
         target: tr.id, rangeM: obs.rangeM === undefined ? null : obs.rangeM,
         bearingDeg: obs.bearingDeg, errM: Math.round(tr.errM), errDeg: +tr.errDeg.toFixed(2),
         confidence: +tr.confidence.toFixed(2), classifiedAs: tr.classifiedAs,
+        hostile: tr.hostile !== false, foeConfidence: +tr.foeConfidence.toFixed(2), idSource: tr.idSource,
         x: Math.round(tr.pos.x), y: Math.round(tr.pos.y), reacquired: false,
       });
       return tr;
@@ -344,6 +389,7 @@ export class TrackManager {
     this._updateConfidence(tr, obs);
     this._refreshUncertainty(tr);
     this._classify(tr);
+    this._updateIdentity(tr, obs, t);
     if (wasLost) {
       tr.lost = false;
       this._emit('sensor.detect', {
@@ -352,6 +398,7 @@ export class TrackManager {
         target: tr.id, rangeM: obs.rangeM === undefined ? null : obs.rangeM,
         bearingDeg: obs.bearingDeg, errM: Math.round(tr.errM), errDeg: +tr.errDeg.toFixed(2),
         confidence: +tr.confidence.toFixed(2), classifiedAs: tr.classifiedAs,
+        hostile: tr.hostile !== false, foeConfidence: +tr.foeConfidence.toFixed(2), idSource: tr.idSource,
         x: Math.round(tr.pos.x), y: Math.round(tr.pos.y), reacquired: true,
       });
     }
@@ -393,6 +440,7 @@ export class TrackManager {
     this._updateConfidence(tr, obs);
     this._refreshUncertainty(tr);
     this._classify(tr);
+    this._updateIdentity(tr, obs, t);
     if (wasLost) {
       tr.lost = false;
       this._emit('sensor.detect', {
@@ -401,6 +449,7 @@ export class TrackManager {
         target: tr.id, rangeM: obs.rangeM, bearingDeg: null,
         errM: Math.round(tr.errM), errDeg: +tr.errDeg.toFixed(2),
         confidence: +tr.confidence.toFixed(2), classifiedAs: tr.classifiedAs,
+        hostile: tr.hostile !== false, foeConfidence: +tr.foeConfidence.toFixed(2), idSource: tr.idSource,
         x: Math.round(tr.pos.x), y: Math.round(tr.pos.y), reacquired: true,
       });
     }
@@ -426,6 +475,145 @@ export class TrackManager {
     const conf = 0.28 + 0.70 * (1 - Math.exp(-(tr.info || 0) / 14));
     // 平滑上升：单次高置信观测不会让航迹瞬间跳到 0.98
     tr.confidence = clamp(Math.max(tr.confidence * 0.85, Math.min(conf, cap)), 0, cap);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 敌我识别（1942 无 IFF）：只有目视证据能改变敌我判断
+  // ══════════════════════════════════════════════════════════════════════════
+  _idRng() {
+    const rng = this.world && this.world.rng;
+    return (rng && typeof rng.chance === 'function') ? rng : null;
+  }
+
+  // 真值来源：观测包里的 targetId 对应的真实舰船。真值只用来记 misId，
+  // 不参与识别判断本身（判断只看观测质量与环境）。
+  _truthSide(obs) {
+    if (!obs) return null;
+    if (obs.trueSide) return obs.trueSide;
+    if (obs.targetId) {
+      const s = this._ship(obs.targetId);
+      if (s && s.side) return s.side;
+    }
+    return null;
+  }
+
+  _noteTruth(tr, obs) {
+    if (!obs) return;
+    const ts = this._truthSide(obs);
+    if (!ts) return;
+    if (!tr._trueSides) tr._trueSides = new Set();
+    tr._trueSides.add(ts);
+    // 混战中一条航迹可能关联了多艘真舰（关联歧义）→ 不判"误"，避免冤枉
+    tr.trueSide = tr._trueSides.size === 1 ? tr._trueSides.values().next().value : null;
+  }
+
+  // 混战程度：附近航迹越多，目视/判型越容易串（萨沃岛式的多舰混战）
+  _meleeFactor(tr) {
+    let n = 0;
+    for (const o of this.tracks) {
+      if (o === tr || o.dead) continue;
+      if (o.ageS !== undefined && o.ageS > 120) continue;
+      if (dist2d(o.pos, tr.pos) < 22000) n++;
+    }
+    return clamp(0.55 + 0.16 * n, 0.55, 1.35);
+  }
+
+  // 第一次下"敌/友"判断：可能出现误判。随机数只走 world.rng。
+  _drawIdBelief(tr) {
+    const truthFriend = tr.trueSide === tr.side;
+    const truthLabel = truthFriend ? 'FRIEND' : 'HOSTILE';
+    const wrongLabel = truthFriend ? 'HOSTILE' : 'FRIEND';
+    const rng = this._idRng();
+    if (!rng) return truthLabel;            // 无随机源（测试替身）：按真值，绝不崩溃
+    const q = clamp(tr._bestIdQ || 0, 0, 1);
+    const melee = this._meleeFactor(tr);
+    // 认错概率：目视质量越差、附近接触越多（混战）越高。
+    // 1942 年条令默认"不明目标即敌舰"，故"友→敌"远多于"敌→友"。
+    const base = 0.52 * Math.pow(clamp(1 - q, 0, 1), 1.4) * melee;
+    const pWrong = truthFriend ? clamp(base, 0, 0.55) : clamp(base * 0.15, 0, 0.12);
+    return rng.chance(pWrong) ? wrongLabel : truthLabel;
+  }
+
+  // 观测包里的识别证据写入航迹；返回当前 misId（无真值时为 null）
+  _updateIdentity(tr, obs, t) {
+    const prevHostile = tr.hostile !== false;
+    const prevMis = tr.misId || null;
+    let changed = false;
+    const ident = obs && obs.identity;
+    if (ident && ident.src === 'SCRIPT') tr._idScripted = true;
+
+    if (tr._idScripted) {
+      // 剧本/测试显式给定：视为已确认（旧调用语义）
+      tr.foeConfidence = Math.max(tr.foeConfidence || 0, 0.99);
+      tr.idSource = 'SCRIPT';
+      tr.hostile = obs && obs.hostile === false ? false : true;
+    } else {
+      // 雷达/声呐/测向：只能测距测向，1942 年没有 IFF → 对敌我判断零信息量
+      if (ident && ident.src && ident.src !== 'VISUAL' && (!tr.idSource || tr.idSource === 'NONE')) {
+        tr.idSource = ident.src;
+      }
+      const q = (ident && ident.src === 'VISUAL' && Number.isFinite(ident.quality))
+        ? clamp(ident.quality, 0, 1) : 0;
+      if (q > 0) {
+        tr.idSource = 'VISUAL';
+        tr._idEv = (tr._idEv || 0) + q;
+        tr._idFixEv = (tr._idFixEv || 0) + q;
+        tr._bestIdQ = Math.max(tr._bestIdQ || 0, q);
+        const cap = clamp(0.30 + 0.65 * tr._bestIdQ, 0.30, ID_MAX_CONF);
+        const ev = 1 - Math.exp(-tr._idEv / ID_EV_SCALE);
+        tr.foeConfidence = clamp(0.08 + 0.90 * ev * (0.35 + 0.65 * tr._bestIdQ), 0, cap);
+        // 第一次"下判断"
+        if (tr._idBelief === null && tr.trueSide && tr.foeConfidence >= ID_BELIEF_MIN) {
+          tr._idBelief = this._drawIdBelief(tr);
+          changed = true;
+        }
+        // 认清真实身份：单次极清晰（近距/白天/探照灯）立刻确认；
+        // 持续目视累计足够（且单次质量过线）也能纠正误判。
+        if (tr.trueSide && (tr._bestIdQ >= ID_CERTAIN_Q ||
+            (tr._idFixEv >= ID_FIX_EVIDENCE && tr._bestIdQ >= ID_FIX_QUALITY))) {
+          const truthLabel = tr.trueSide === tr.side ? 'FRIEND' : 'HOSTILE';
+          if (tr._idBelief !== truthLabel) { tr._idBelief = truthLabel; changed = true; }
+          tr.foeConfidence = Math.max(tr.foeConfidence, ID_MAX_CONF * 0.9);
+        }
+      }
+      if (tr._idBelief) {
+        // 1942 年条令：没有把握的"像是友舰"仍然保持警惕（不解除戒备）；
+        // 只有较有把握地确认友舰才把 hostile 置 false（随后 gunnery 停火）。
+        const wantHostile = tr._idBelief === 'FRIEND' ? (tr.foeConfidence < ID_FRIEND_CERTAIN) : true;
+        if (wantHostile !== (tr.hostile !== false)) { tr.hostile = wantHostile; changed = true; }
+      }
+    }
+
+    // 误判台账：真值与当前认知不一致（真值仅供 AAR/测试，不进入战术视图）
+    let mis = null;
+    if (tr.trueSide) {
+      if (tr.trueSide === tr.side && tr.hostile !== false) mis = 'FRIEND_AS_HOSTILE';
+      else if (tr.trueSide !== tr.side && tr.hostile === false) mis = 'HOSTILE_AS_FRIEND';
+    }
+    const misChanged = mis !== (tr.misId || null);
+    tr.misId = mis;
+    if (changed || misChanged) {
+      this._emit('sensor.identity', {
+        t: this.world ? this.world.t : t,
+        side: tr.side, ship: (obs && obs.shipId) || tr.sourceShips[0] || null,
+        target: tr.id, source: tr.idSource || 'NONE',
+        hostile: tr.hostile !== false,
+        foeConfidence: +tr.foeConfidence.toFixed(2),
+        misId: mis,
+        rangeM: (tr.lastObsRangeM === null || tr.lastObsRangeM === undefined) ? null : Math.round(tr.lastObsRangeM),
+      });
+    }
+    return mis;
+  }
+
+  // 该舰的真值身份是否已作为本舰（同阵营）航迹存在——sensors 用于"同阵营不明接触"的续跟
+  hasOwnContact(side, targetShipId) {
+    if (!targetShipId) return null;
+    for (const tr of this.tracks) {
+      if (tr.dead || tr.side !== side) continue;
+      if (tr._trueIds && tr._trueIds.has(targetShipId)) return tr;
+    }
+    return null;
   }
 
   // ── 各传感器的系统误差下限（多次观测平均不掉的部分）──────────────────────
@@ -478,6 +666,7 @@ export class TrackManager {
 
   // 把观测元数据写入航迹（与滤波分开，创建/更新共用）
   _applyObservation(tr, obs, pos, bearingOnly, t, observerPos) {
+    this._noteTruth(tr, obs);
     const srcKey = obs.sensorKind || obs.srcKind; // 区分主动声呐 SONAR 与被动水听器 HYDRO
     if (!tr.sources.includes(srcKey)) tr.sources.push(srcKey);
     if (obs.shipId && !tr.sourceShips.includes(obs.shipId)) tr.sourceShips.push(obs.shipId);
@@ -643,6 +832,8 @@ export class TrackManager {
       const decay = tr.bearingOnly ? 0.0060 : 0.0035; // 每秒置信度衰减
       tr.confidence = clamp(tr.confidence - decay * dt, 0, 0.995);
       tr.idConfidence = Math.max(0, tr.idConfidence - 0.0015 * dt);
+      // 敌我判断的记忆衰减很慢（认错过一次会很久都记得），但长时间失跟后也会淡忘
+      tr.foeConfidence = Math.max(0, (tr.foeConfidence || 0) - 0.0015 * dt);
       this._refreshUncertainty(tr);
       if (!tr.lost && (tr.ageS > LOSE_AGE_S || tr.confidence < 0.22)) {
         tr.lost = true;
@@ -707,6 +898,19 @@ export class TrackManager {
         keep._bias = Object.assign({}, drop._bias || {}, keep._bias || {});
         keep.info = Math.max(keep.info || 0, drop.info || 0);
         keep._idInfo = Math.max(keep._idInfo || 0, drop._idInfo || 0);
+        // 敌我识别证据/判断随航迹合并（保留信息量更大的一方）
+        keep._idEv = Math.max(keep._idEv || 0, drop._idEv || 0);
+        keep._idFixEv = Math.max(keep._idFixEv || 0, drop._idFixEv || 0);
+        keep._bestIdQ = Math.max(keep._bestIdQ || 0, drop._bestIdQ || 0);
+        keep.foeConfidence = Math.max(keep.foeConfidence || 0, drop.foeConfidence || 0);
+        if (keep._idBelief === null || keep._idBelief === undefined) keep._idBelief = drop._idBelief || null;
+        if (drop._idScripted) keep._idScripted = true;
+        if (drop.idSource && drop.idSource !== 'NONE' && (!keep.idSource || keep.idSource === 'NONE')) keep.idSource = drop.idSource;
+        if (drop._trueSides) {
+          if (!keep._trueSides) keep._trueSides = new Set();
+          for (const s of drop._trueSides) keep._trueSides.add(s);
+          keep.trueSide = keep._trueSides.size === 1 ? keep._trueSides.values().next().value : null;
+        }
         for (const id of drop._trueIds) keep._trueIds.add(id);
         keep.P = keep.P.map((v, idx) => Math.max(v, drop.P[idx] * 0.5));
         drop.dead = true;
@@ -793,6 +997,12 @@ export class TrackManager {
       classifiedAs: tr.classifiedAs, classProbs: tr.classProbs,
       confidence: clamp(isOwner ? tr.confidence : tr.confidence * confFactor, 0, 0.99),
       idConfidence: clamp(isOwner ? tr.idConfidence : tr.idConfidence * 0.9, 0, 0.99),
+      // 敌我判断（认知）：战术视图只给"我认为它是不是敌舰"及其置信度，
+      // 不给 misId——战场上没人知道真值。
+      hostile: tr.hostile !== false,
+      foeConfidence: clamp(isOwner ? (tr.foeConfidence || 0) : (tr.foeConfidence || 0) * 0.92, 0, 0.99),
+      idSource: tr.idSource || 'NONE',
+      hasIFF: false,
       sources: tr.sources.slice(),
       ageS: tr.ageS, errM, errDeg: errDegOut,
       errMajorM: Math.max(tr.errMajorM, errM * 0.55),

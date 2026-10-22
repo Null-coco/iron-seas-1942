@@ -33,6 +33,7 @@
 //   deployChaff(world, ship, opts), updateChaffClouds(env, t, dt), radiatedNoiseDb(target)
 import { clamp, normDeg, normDeg180, dist2d, bearing2d, destPoint, aspectAngle, deg2rad, rad2deg } from '../core/util.js';
 import { visualObservation, updateSmokeClouds, deployChaff } from './vision.js';
+import { ownFleetKnownRangeM, ownContactUncertainAt } from './tracks.js';
 // 箔条投放由 vision.js 实现（契约 CHAFF 命令的落点），此处再导出以保持 T2 旧调用兼容
 export { deployChaff };
 
@@ -388,7 +389,11 @@ function processRadar(ship, radar, world, dt) {
   let anyDetect = false;
 
   for (const target of world.ships) {
-    if (!target || target === ship || !target.isAfloat || target.side === ship.side) continue;
+    if (!target || target === ship || !target.isAfloat) continue;
+    // 同阵营舰船：雷达没有 IFF（1942），但 CIC 通常掌握本编队友舰位置，不因雷达起批；
+    // 只有在"编队识别范围外 + CIC 把握不足"时，友舰才作为不明接触进入航迹
+    // （一旦成了航迹，雷达继续用距离/方位保持跟踪——这正是夜间误伤能持续的证据链）。
+    if (target.side === ship.side && !sameSideContactAllowed(ship, target, world, rng)) continue;
     const R = dist2d(ship.pos, target.pos);
     if (R < spec.minRangeM || R > spec.maxRangeM) continue;
     // 陆地遮蔽：雷达波不能穿透山体/岸线（真实海战中岛屿与海角是天然的雷达盲区）
@@ -420,7 +425,8 @@ function processRadar(ship, radar, world, dt) {
         rangeM: Math.max(spec.minRangeM * 0.5, R + rng.normal(0, sigmaR0)),
         bearingDeg: null, accuracyM: sigmaR0, accuracyDeg: 180, rangeOnly: true,
         confidence: clamp(0.40 + 0.25 * clamp(margin / 20, 0, 1), 0.3, 0.8),
-        classifiedAs: 'UNKNOWN', features: { rcsM2: Math.max(30, rcsOnly), rcsSigmaLog: 0.45 },
+        classifiedAs: 'UNKNOWN', identity: { src: 'RADAR', quality: 0, iff: false },
+        features: { rcsM2: Math.max(30, rcsOnly), rcsSigmaLog: 0.45 },
         t: world.t,
       });
       continue;
@@ -449,6 +455,8 @@ function processRadar(ship, radar, world, dt) {
       bearingOnly: !spec.hasRange,
       confidence: clamp(0.50 + 0.30 * clamp(margin / 20, 0, 1), 0.35, 0.9),
       classifiedAs: 'UNKNOWN',
+      // 1942 年的雷达没有 IFF：只能测距/测向，敌我识别零信息量
+      identity: { src: 'RADAR', quality: 0, iff: false },
       features: {
         rcsM2: Math.max(30, rcsMeas),
         rcsSigmaLog: 0.35,
@@ -495,6 +503,112 @@ function processRadar(ship, radar, world, dt) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// 敌我识别证据（1942 年没有 IFF）：只有目视可能分辨敌我
+// ════════════════════════════════════════════════════════════════════════════
+// 判型/敌我靠舰影轮廓、烟囱与炮塔布局、旗号；这些细节的"可辨认距离"远小于
+// "发现距离"，且随光照、海况、舷角（舷侧投影最大）、舰员素质急剧变化。
+const RECOG_RANGE_DAY_M = { DD: 5200, CL: 6200, CA: 7000, BC: 8200, BB: 9000, CV: 12000 };
+
+// 返回 { src:'VISUAL', quality:0..1, ... }：quality 是"这一眼能不能看清它是谁"的质量，
+// 由 tracks.js 累积成 foeConfidence（敌我判定置信度），并决定会不会认错。
+export function visualIdentityEvidence(ship, target, env, rng, obs) {
+  const e = env || {};
+  const light = clamp(e.lightLevel !== undefined ? e.lightLevel : 1, 0, 1);
+  const sea = clamp(e.seaState !== undefined ? e.seaState : 3, 0, 9);
+  const R = (obs && obs.rangeM !== null && obs.rangeM !== undefined) ? Math.abs(obs.rangeM)
+    : (obs && obs.pos && ship && ship.pos ? dist2d(ship.pos, obs.pos) : 12000);
+  const type = (target && (target.type || (target.data && target.data.type))) || 'CA';
+  const recogDayM = RECOG_RANGE_DAY_M[type] || 7000;
+  const tf = (target && target.flags) || {};
+  const litTarget = !!((tf.searchlight && tf.searchlight.on) || (tf.illuminated || 0) > 0.05 || tf.onFire)
+    || !!(target && Array.isArray(target.compartments) && target.compartments.some((c) => (c.fire || 0) > 0.1));
+  const effLight = clamp(light + (litTarget ? 0.55 : 0), 0, 1);
+  // 夜色下可辨认距离只剩白天的 28%（无月）→ 100%（正午/照明）
+  const nightFactor = 0.28 + 0.72 * Math.pow(effLight, 0.5);
+  const recogRangeM = Math.max(600, recogDayM * nightFactor);
+  const rangeFactor = clamp(1 - Math.pow(clamp(R / recogRangeM, 0, 1), 2), 0.04, 1);
+  const aspect = (obs && obs.features && Number.isFinite(obs.features.aspectDeg)) ? obs.features.aspectDeg : 90;
+  const aspectFactor = 0.55 + 0.45 * Math.sin(clamp(aspect, 0, 180) * Math.PI / 180);  // 舷侧投影最清楚
+  const seaFactor = clamp(1 - 0.035 * sea, 0.6, 1);       // 横摇/纵摇让舰影跳动
+  const crewFactor = clamp(0.65 + 0.45 * clamp((ship && ship.crewQuality) || 0.85, 0.5, 1.25), 0.8, 1.2);
+  // 水平能见度（雾/雨）直接决定能不能看清舰体细节
+  const visNm = (typeof e.horizontalVisibilityNm === 'function') ? e.horizontalVisibilityNm(ship)
+    : (e.visibilityNm !== undefined ? e.visibilityNm : 12);
+  const visFactor = clamp(visNm / 12, 0.4, 1);
+  // 同型舰更难分辨（萨沃岛：驱逐舰对驱逐舰、巡洋舰对巡洋舰的舰影极易混淆）
+  const sameType = !!(ship && target && ship.type && target.type && ship.type === target.type);
+  const typeFactor = sameType ? 0.85 : 1.0;
+  const jitter = (rng && typeof rng.normal === 'function') ? Math.exp(rng.normal(0, 0.22)) : 1;
+  const quality = clamp(rangeFactor * aspectFactor * seaFactor * crewFactor * visFactor * typeFactor * jitter, 0, 0.95);
+  return {
+    src: 'VISUAL', quality, rangeM: Math.round(R), aspectDeg: Math.round(aspect),
+    lightLevel: +light.toFixed(3), seaState: sea, recogRangeM: Math.round(recogRangeM),
+    illuminated: litTarget, iff: false,
+  };
+}
+
+// 同阵营舰船会不会被 CIC/瞭望当成"来历不明的接触"：
+//   · 白天（光照 ≥ 0.35）编队识别可靠 → 永不；
+//   · 夜里只有超出编队识别距离、且 CIC 对友舰位置把握不足时才会：
+//     每艘友舰每 600 s 只掷一次"把握"（避免把整支舰队都变成假目标）；
+//   · 探照灯/起火/被照亮的友舰更容易被认出，反而不成为不明接触。
+function ownContactIsConfused(ship, target, world, rng) {
+  if (!world || !world.env) return false;
+  const light = clamp(world.env.lightLevel !== undefined ? world.env.lightLevel : 1, 0, 1);
+  if (!ownContactUncertainAt(light)) return false;       // 白天编队识别可靠
+  const R = dist2d(ship.pos, target.pos);
+  if (R <= ownFleetKnownRangeM(light)) return false;      // 编队内，认识
+  const tf = target.flags || {};
+  if ((tf.searchlight && tf.searchlight.on) || (tf.illuminated || 0) > 0.05) return false;
+  // 规模护栏：同一阵营同时最多只有 1 条"被当成不明接触的友舰"航迹。
+  // 误伤必须是偶发的悲剧，而不是每艘友舰都变成假目标（否则 AI/UI 全是幽灵目标）。
+  let ownPhantoms = 0;
+  const list = (world.tracks && world.tracks.tracks) || [];
+  for (const tr of list) {
+    if (!tr || tr.dead || tr.side !== ship.side) continue;
+    if (tr.trueSide !== ship.side) continue;
+    if (tr.ageS !== undefined && tr.ageS > 600) continue;
+    ownPhantoms++;
+  }
+  if (ownPhantoms >= 1) return false;
+  // 编队内的友舰有邻舰/队形可作参照，不会被当成不明接触；
+  // 只有"离群"的舰艇（附近 8 km 内没有别的同阵营舰）才可能犯这种错。
+  let matesNear = 0;
+  const fleet = (world && Array.isArray(world.ships)) ? world.ships : [];
+  for (const s of fleet) {
+    if (!s || s === ship || s === target || !s.isAfloat || s.side !== ship.side) continue;
+    if (dist2d(ship.pos, s.pos) < 8000 || dist2d(target.pos, s.pos) < 8000) { matesNear++; break; }
+  }
+  if (matesNear > 0) return false;
+  // 每场交战、每个阵营只发生一次"指挥事故"：某艘友舰被 CIC 当成来历不明的接触。
+  // 1942 年这种认错是偶发的（萨沃岛），不应让整支舰队都变成幽灵目标。
+  if (!world._ownContactIncident) world._ownContactIncident = new Map();
+  let st = world._ownContactIncident.get(ship.side);
+  if (!st) {
+    let melee = 0;
+    for (const tr of list) {
+      if (!tr || tr.dead) continue;
+      if (tr.ageS !== undefined && tr.ageS > 120) continue;
+      if (dist2d(tr.pos, target.pos) < 20000) melee++;
+    }
+    const prob = clamp(0.18 + 0.35 * (1 - light / 0.35) + 0.05 * Math.max(0, melee - 1), 0.15, 0.55);
+    const allowed = !!(rng && typeof rng.chance === 'function' ? rng.chance(prob) : false);
+    st = { allowed, targetId: null, t: world.t, prob };
+    world._ownContactIncident.set(ship.side, st);
+  }
+  if (!st.allowed) return false;
+  if (!st.targetId) st.targetId = target.id;   // 只对那一艘友舰"犯糊涂"
+  return target.id === st.targetId;
+}
+
+// 同阵营目标能否被传感器处理：已经是"不明接触"航迹的继续跟踪；否则按 CIC 把握掷骰
+function sameSideContactAllowed(ship, target, world, rng) {
+  if (!world.tracks || typeof world.tracks.hasOwnContact !== 'function') return false;
+  if (world.tracks.hasOwnContact(ship.side, target.id)) return true;
+  return ownContactIsConfused(ship, target, world, rng);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // 8. 目视瞭望（调用 vision.js 的目视发现与光学测距）→ world.tracks.observe()
 // ════════════════════════════════════════════════════════════════════════════
 function processVisualWatch(ship, world, dt) {
@@ -508,13 +622,18 @@ function processVisualWatch(ship, world, dt) {
   ship._visScanAcc = 0;
   if (!ship._visSpotted) { ship._visSpotted = new Set(); ship._visLastSpot = new Map(); }
   for (const target of world.ships) {
-    if (!target || target === ship || !target.isAfloat || target.side === ship.side) continue;
+    if (!target || target === ship || !target.isAfloat) continue;
+    // 同阵营舰船：白天/编队内不会成为航迹；夜间编队外可能被当成不明接触（萨沃岛式误伤的根源）
+    if (target.side === ship.side && !sameSideContactAllowed(ship, target, world, rng)) continue;
     const obs = visualObservation(ship, target, env, rng);
     if (!obs) continue;
     obs.side = ship.side;
     obs.shipId = ship.id;
     obs.targetId = target.id;
     obs.t = world.t;
+    // 目视识别证据：只有目视能给敌我判断提供信息（雷达/声呐没有 IFF）
+    obs.identity = visualIdentityEvidence(ship, target, env, rng, obs);
+    if (target.side === ship.side) obs.trueSide = target.side;
     const track = world.tracks.observe(obs);
     if (!track) continue;
     const prev = ship._visLastSpot.get(target.id);
@@ -670,7 +789,8 @@ function processActiveSonar(ship, sensor, world, dt) {
   if (sensor._pingAcc < sp.pingIntervalS / clamp(health, 0.2, 1)) return;
   sensor._pingAcc = 0;
   for (const target of world.ships) {
-    if (!target || target === ship || !target.isAfloat || target.side === ship.side) continue;
+    if (!target || target === ship || !target.isAfloat) continue;
+    if (target.side === ship.side && !sameSideContactAllowed(ship, target, world, rng)) continue;
     const R = dist2d(ship.pos, target.pos);
     if (R < sp.minRangeM || R > sp.maxRangeM) continue;
     const aspect = aspectAngle(target.heading || 0, bearing2d(target.pos, ship.pos));
@@ -689,7 +809,7 @@ function processActiveSonar(ship, sensor, world, dt) {
       observerPos: { x: ship.pos.x, y: ship.pos.y },
       pos: destPoint(ship.pos, measuredR, measuredB),
       rangeM: measuredR, bearingDeg: measuredB, accuracyM: sigmaR, accuracyDeg: sigmaB,
-      confidence: 0.45, classifiedAs: 'UNKNOWN', t: world.t,
+      confidence: 0.45, classifiedAs: 'UNKNOWN', identity: { src: 'SONAR', quality: 0, iff: false }, t: world.t,
     });
     sensor.lastDetectT = world.t;
   }
@@ -704,7 +824,8 @@ function processHydrophone(ship, sensor, world, dt) {
   if (sensor._scanAcc < sp.scanPeriodS) return;
   sensor._scanAcc = 0;
   for (const target of world.ships) {
-    if (!target || target === ship || !target.isAfloat || target.side === ship.side) continue;
+    if (!target || target === ship || !target.isAfloat) continue;
+    if (target.side === ship.side && !sameSideContactAllowed(ship, target, world, rng)) continue;
     const R = dist2d(ship.pos, target.pos);
     if (R < sp.minRangeM || R > sp.maxRangeM) continue;
     const limit = passiveRangeM(sensor, env, ship, target);
@@ -719,7 +840,8 @@ function processHydrophone(ship, sensor, world, dt) {
       observerPos: { x: ship.pos.x, y: ship.pos.y },
       pos: destPoint(ship.pos, 12000, measuredB),
       rangeM: null, bearingDeg: measuredB, accuracyM: null, accuracyDeg: sigmaB,
-      bearingOnly: true, passive: true, confidence: 0.30, classifiedAs: 'UNKNOWN', t: world.t,
+      bearingOnly: true, passive: true, confidence: 0.30, classifiedAs: 'UNKNOWN',
+      identity: { src: 'HYDRO', quality: 0, iff: false }, t: world.t,
     });
     sensor.lastDetectT = world.t;
   }
