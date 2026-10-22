@@ -18,7 +18,12 @@
 // 5) 烟幕：舰艇施放发烟（flags.smokeOn / smokeIntensity）或火灾产生烟团，
 //    写入 env.smokeClouds（fog-of-war 状态），随风漂移、膨胀、指数消散；视觉 LOS 上的
 //    烟团密度按特征遮蔽长度 220 m 折算光学厚度，雷达不受影响（RF 穿透烟尘）。
-// 6) 随机数只走 world.rng。
+// 6) 陆地遮蔽：观察者与目标之间的岛屿/海角截断视线（LOS）时不可发现。Land 只有二维
+//    海岸线（无海拔），遮挡按"连线是否穿越陆地"判定，采样步长 200 m，仅对 <=30 km 的
+//    视线执行（性能）；被遮蔽时 visualDetection().blockedByLand=true，
+//    visualObservation 返回 null 并（边沿触发）emit sensor.visual.blocked{blockedByLand:true}。
+//    已建立的航迹不再获得新观测，由 tracks 的失跟计时自然 emit sensor.lose。
+// 7) 随机数只走 world.rng。
 import { clamp, normDeg, normDeg180, dist2d, bearing2d, destPoint, aspectAngle, deg2rad, rad2deg } from '../core/util.js';
 
 const NMI_M = 1852;
@@ -27,6 +32,95 @@ const C_THRESHOLD = 0.02;        // Koschmieder 2% 对比度阈值
 const HORIZON_M_PER_SQRT_M = 4122; // 4/3 地球折射：4.12 km/√m
 const SMOKE_L_CHAR_M = 220;      // 烟团特征遮蔽长度（m），density=1 时每 220 m 衰减 e 倍
 const MAX_VISUAL_RANGE_M = 45000;
+
+// ── 陆地遮蔽（Land）：岛屿/海角截断观察者→目标的视线 ─────────────────────────
+// Land（src/sim/land.js）是二维海岸线栅格（无海拔）。这里只问"两点连线是否穿越陆地"，
+// 地形数据全部交给 Land 的现有能力（isLandExact 精确点判定 + segmentBlocked 线段求交），
+// 不在 vision 里自造地形。
+// 性能红线：只对 <= 30 km 的视线做陆地判定（更远的目视本就被地平线/能见度压到极限，
+// 且雷达已由 sensors.js 独立判遮蔽）；采样步长 200 m（< Land 栅格 400 m 的一半），
+// 比栅格采样更细；尺寸小于步长、可能落在两个采样点之间的细礁/小屿，再交给
+// Land.segmentBlocked 的精确环求交兜底。
+const LAND_LOS_MAX_M = 30000;    // 超过此距离不做陆地遮蔽（性能）
+const LAND_LOS_STEP_M = 200;     // 视线采样步长上限（m）
+const LAND_LOS_FINE_M = 200;     // 小于此尺寸的小环需要精确求交兜底（m）
+
+// env → { world, land }：visualDetection/visualObservation 的签名是冻结的（T2 契约只给
+// env 与 rng，没有 world），所以由同模块的 updateSmokeClouds(world, dt) / deployChaff(world,...)
+// 在每个 tick 把 world.land 登记到 world.env 上（两者每帧都在目视瞭望之前执行）。
+const _worldCtxByEnv = new WeakMap();
+
+export function bindWorldContext(world) {
+  if (!world || !world.env) return;
+  _worldCtxByEnv.set(world.env, { world, land: world.land || null });
+  return world.land || null;
+}
+
+function asLand(x) {
+  if (!x || typeof x !== 'object') return null;
+  if (typeof x.segmentBlocked === 'function' || typeof x.isLandExact === 'function'
+    || typeof x.isLand === 'function') return x;
+  return null;
+}
+
+// 解析陆地对象：显式参数（Land 实例或 {land}/{world}）→ env 上登记的 world 上下文 → env.land
+// → viewer.land。全部缺失时返回 null（= 无陆地，行为与旧实现完全一致）。
+function resolveLand(env, viewer, extra) {
+  const direct = asLand(extra);
+  if (direct) return direct;
+  if (extra && typeof extra === 'object') {
+    const nested = asLand(extra.land) || asLand(extra._land) || asLand(extra.world && extra.world.land);
+    if (nested) return nested;
+  }
+  if (env) {
+    const ctx = _worldCtxByEnv.get(env);
+    if (ctx && ctx.land) return ctx.land;
+    const fromEnv = asLand(env.land) || asLand(env._land);
+    if (fromEnv) return fromEnv;
+  }
+  if (viewer) {
+    const fromViewer = asLand(viewer.land) || asLand(viewer._land) || asLand(viewer.world && viewer.world.land);
+    if (fromViewer) return fromViewer;
+  }
+  return null;
+}
+
+// 视线是否被陆地截断。a/b 为世界坐标点 {x,y}（米）。
+// 返回 true = 陆地（山体/岛屿/岸线）挡住了视线，观测者看不到目标。
+export function landBlocksLOS(land, a, b, opts = {}) {
+  const L = asLand(land);
+  if (!L || L.empty || !a || !b) return false;
+  if (!Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(b.x) || !Number.isFinite(b.y)) return false;
+  const len = dist2d(a, b);
+  if (!(len > 1)) return false;
+  const maxRange = opts.maxRangeM || LAND_LOS_MAX_M;
+  if (len > maxRange) return false;
+  const step = Math.max(20, Math.min(LAND_LOS_STEP_M, opts.stepM || LAND_LOS_STEP_M));
+  const n = Math.max(1, Math.ceil(len / step));
+  const dx = (b.x - a.x) / n, dy = (b.y - a.y) / n;
+  // 精确点判定（Land.isLandExact 含细小岛礁的环求交兜底）
+  const isLand = typeof L.isLandExact === 'function' ? (x, y) => L.isLandExact(x, y)
+    : (typeof L.isLandAny === 'function' ? (x, y) => L.isLandAny(x, y)
+      : (typeof L.isLand === 'function' ? (x, y) => L.isLand(x, y) : null));
+  if (!isLand) return false;
+  for (let i = 1; i < n; i++) {
+    if (isLand(a.x + dx * i, a.y + dy * i)) return true;
+  }
+  // 采样点之间可能整个跨过一座 < 200 m 的小屿：只对 bbox 与连线相交、且尺寸小于步长的
+  // 小环调用 Land 的线段精确求交（大环采样必中，不会漏）。
+  const boxes = Array.isArray(L.ringBoxes) ? L.ringBoxes : null;
+  if (boxes && boxes.length && typeof L.segmentBlocked === 'function') {
+    const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x);
+    const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
+    for (const rb of boxes) {
+      if (!rb) continue;
+      if (rb.c < minX || rb.a > maxX || rb.d < minY || rb.b > maxY) continue;
+      if (Math.max(rb.c - rb.a, rb.d - rb.b) >= LAND_LOS_FINE_M) continue; // 大环：采样已覆盖
+      return L.segmentBlocked(a, b);
+    }
+  }
+  return false;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // 基础几何/光照辅助
@@ -70,6 +164,12 @@ function searchlightAlignment(viewer, bearingToTarget) {
   return clamp(1 - diff / halfBeam, 0, 1);
 }
 
+function visibilityNmOf(env, viewer) {
+  return (env && typeof env.horizontalVisibilityNm === 'function')
+    ? env.horizontalVisibilityNm(viewer)
+    : ((env && env.visibilityNm) || 12);
+}
+
 // LOS 上的平均烟幕密度（0~1）：沿视线采样 env.smokeDensityAt
 function losSmokeDensity(env, from, to) {
   if (!env || typeof env.smokeDensityAt !== 'function' || !from || !to) return 0;
@@ -86,17 +186,33 @@ function losSmokeDensity(env, from, to) {
 // ════════════════════════════════════════════════════════════════════════════
 // 目视发现（核心）：返回详细分解，供测试/AAR/UI 解释
 // ════════════════════════════════════════════════════════════════════════════
-export function visualDetection(viewer, target, env) {
+// landOrOpts：可选。Land 实例，或 {land} / {world} / {stepM,maxRangeM}。省略时从 env
+// （sensors.js 每帧登记）解析 world.land —— 旧调用 visualDetection(viewer, target, env) 不受影响。
+export function visualDetection(viewer, target, env, landOrOpts) {
   const empty = {
     detected: false, rangeM: 0, bearingDeg: 0, aspectDeg: 0, detectionRangeM: 0,
     horizonM: 0, visibilityNm: 0, contrast0: 0, contrastAtTarget: 0, contrastThreshold: C_THRESHOLD,
-    smokeDensity: 0, apparentAreaM2: 0, lightLevel: 0,
+    smokeDensity: 0, apparentAreaM2: 0, lightLevel: 0, blockedByLand: false,
     cues: { hull: 0, plume: 0, wake: 0, fire: 0, searchlight: 0 },
   };
   if (!viewer || !target || !viewer.pos || !target.pos) return empty;
   const range = dist2d(viewer.pos, target.pos);
   const bearing = bearing2d(viewer.pos, target.pos);
   if (range < 30) return Object.assign(empty, { detected: true, rangeM: range, bearingDeg: bearing, detectionRangeM: MAX_VISUAL_RANGE_M, horizonM: 1e9 });
+
+  // —— 陆地遮蔽：观察者→目标连线被岛屿/海角截断 → 毫无可见性（不发现） ——
+  const land = resolveLand(env, viewer, landOrOpts);
+  const landMaxM = (landOrOpts && typeof landOrOpts === 'object' && Number.isFinite(landOrOpts.maxRangeM))
+    ? landOrOpts.maxRangeM : LAND_LOS_MAX_M;
+  if (land && !land.empty && range <= landMaxM
+    && landBlocksLOS(land, viewer.pos, target.pos, landOrOpts)) {
+    return Object.assign(empty, {
+      detected: false, rangeM: range, bearingDeg: bearing,
+      detectionRangeM: 0, visibilityNm: visibilityNmOf(env, viewer),
+      horizonM: visualHorizonM(eyeHeightM(viewer), targetVisibleHeightM(target)),
+      blockedByLand: true,
+    });
+  }
 
   const aspect = aspectAngle(target.heading || 0, bearing);
   const area = projectedSilhouetteAreaM2(target, aspect);
@@ -146,9 +262,7 @@ export function visualDetection(viewer, target, env) {
   const C0 = Math.max(hullVisible, plume) + 0.5 * wake;
 
   // —— 大气 + 烟幕消光 ——
-  const visNm = (env && typeof env.horizontalVisibilityNm === 'function')
-    ? env.horizontalVisibilityNm(viewer)
-    : ((env && env.visibilityNm) || 12);
+  const visNm = visibilityNmOf(env, viewer);
   const ext = extinctionPerM(visNm * NMI_M);
   const smokeDensity = losSmokeDensity(env, viewer.pos, target.pos);
   const smokeExt = smokeDensity / SMOKE_L_CHAR_M;
@@ -169,7 +283,7 @@ export function visualDetection(viewer, target, env) {
   }
   const detected = C0 > cth && range <= detectionRangeM && contrastAtTarget >= cth;
   return {
-    detected, rangeM: range, bearingDeg: bearing, aspectDeg: aspect,
+    detected, rangeM: range, bearingDeg: bearing, aspectDeg: aspect, blockedByLand: false,
     detectionRangeM: Math.max(0, detectionRangeM), horizonM: horizon, visibilityNm: visNm,
     contrast0: C0, contrastAtTarget, contrastThreshold: cth,
     smokeDensity, apparentAreaM2: area, lightLevel,
@@ -264,7 +378,7 @@ export function opticalRangefind(viewer, target, env, rng) {
     // 光学测距可用性：测距手是对着"已发现的目标"读距离，不需要每次重新满足"发现"的对比度阈值，
     // 但夜暗无照明时确实看不见（所以保留光照/照明条件）。旧条件要求 det.detected → 丹麦海峡
     // 黎明时德军全部退回性能很差的对海雷达（σ≈600m），炮术被压到几乎零命中。
-    valid: (R > 200 && R < 38000 && R <= (det.horizonM || 40000) * 0.98
+    valid: (!det.blockedByLand && R > 200 && R < 38000 && R <= (det.horizonM || 40000) * 0.98
       && R <= (det.visibilityNm || 12) * 1852 * 1.35 && sigmaR < 5000
       && (litLevel > 0.03 || litTarget || R < 4000)),
     type, baseM: base, trueRangeM: R,
@@ -276,8 +390,40 @@ export function opticalRangefind(viewer, target, env, rng) {
 // ════════════════════════════════════════════════════════════════════════════
 // 目视观测 → world.tracks.observe() 的观测包（供 sensors.js 调用）
 // ════════════════════════════════════════════════════════════════════════════
-export function visualObservation(viewer, target, env, rng) {
-  const det = visualDetection(viewer, target, env);
+// 陆地遮蔽的边沿状态：viewer → Set(targetId)，用于只在"刚被挡住/刚恢复"时各发一次事件
+const _landBlockedByViewer = new WeakMap();
+
+function reportLandBlocked(viewer, target, det, env) {
+  if (!viewer) return;
+  let set = _landBlockedByViewer.get(viewer);
+  if (!set) { set = new Set(); _landBlockedByViewer.set(viewer, set); }
+  const key = (target && target.id) || target;
+  if (set.has(key)) return;              // 边沿触发：连续遮蔽只报一次
+  set.add(key);
+  const ctx = env ? _worldCtxByEnv.get(env) : null;
+  const world = ctx && ctx.world;
+  if (!world) return;                    // 无 world（纯函数测试）时只记状态，不发事件
+  emit(world, 'sensor.visual.blocked', {
+    t: world.t, side: viewer.side, ship: viewer.id, target: key,
+    source: 'VISUAL', blockedByLand: true,
+    rangeM: Math.round(det.rangeM), bearingDeg: Math.round(det.bearingDeg),
+  });
+}
+
+function clearLandBlocked(viewer, target) {
+  if (!viewer) return;
+  const set = _landBlockedByViewer.get(viewer);
+  if (!set) return;
+  set.delete((target && target.id) || target);
+}
+
+export function visualObservation(viewer, target, env, rng, landOrOpts) {
+  const det = visualDetection(viewer, target, env, landOrOpts);
+  if (det.blockedByLand) {               // 陆地挡住视线：不产生观测；已有航迹由 tracks 失跟
+    reportLandBlocked(viewer, target, det, env);
+    return null;
+  }
+  clearLandBlocked(viewer, target);
   if (!det.detected) return null;
   const rand = (rng && typeof rng.normal === 'function') ? rng : { normal: () => 0 };
   const basis = clamp(0.45 + 0.25 * clamp(det.contrastAtTarget / Math.max(0.01, det.contrastThreshold), 0, 2) / 2, 0.4, 0.85);
@@ -332,6 +478,7 @@ export function visualObservation(viewer, target, env, rng) {
 // ════════════════════════════════════════════════════════════════════════════
 export function deployChaff(world, ship, opts = {}) {
   if (!world || !ship || !world.env) return null;
+  bindWorldContext(world);
   const env = world.env;
   if (!Array.isArray(env.chaffClouds)) env.chaffClouds = [];
   const DEGL = Math.PI / 180;
@@ -367,6 +514,7 @@ function emit(world, type, payload) {
 
 export function updateSmokeClouds(world, dt) {
   if (!world || !world.env) return;
+  bindWorldContext(world);   // 把 world.land 登记到 env，供本帧稍后的目视瞭望做陆地遮蔽
   const env = world.env;
   if (!Array.isArray(env.smokeClouds)) env.smokeClouds = [];
   const rng = world.rng;

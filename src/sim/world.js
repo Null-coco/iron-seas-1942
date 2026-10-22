@@ -37,8 +37,9 @@ let WORLD_SEQ = 0;
 //     并计入 droppedCritical 由 exportReplay().retention / 战报显式暴露，绝不静默。
 const CRITICAL_EVENT_PREFIXES = ['sim.', 'victory.', 'ship.', 'torp.', 'dam.'];
 const CRITICAL_EVENT_TYPES = new Set([
-  'gun.hit', 'gun.penetration', 'gun.bounce', 'gun.nearmiss', 'gun.straddle',
+  'gun.hit', 'gun.penetration', 'gun.bounce', 'gun.nearmiss', 'gun.straddle', 'gun.terrain', 'gun.friendlyfire',
   'order.issue', 'order.effective', 'order.reject', 'sensor.chaff',
+  'scenario.trigger', 'scenario.message',
   'ai.fallback', 'ai.error', 'ai.connected', 'ai.disconnected',
 ]);
 

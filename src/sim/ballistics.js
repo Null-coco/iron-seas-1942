@@ -24,6 +24,10 @@
 //     舰体造成冲击损伤；记 NEARMISS 交 damage.applyHit。
 //  8. 水中弹道：入水后 Cd≈1.8（空泡/横滚迅速失速），大口径 AP 可水下穿行
 //     20~40m 后命中水线下舰体（历史：俾斯麦、胡德的水下命中）。
+//  9. 陆地弹着：Land（src/sim/land.js）为二维岸线（栅格 + 小环精确判定，无海拔）。
+//     弹丸落地（z 穿过地形面）时若水平位置在陆地 → 终止弹道、emit gun.terrain，
+//     不调用 applyShipHit、不计命中/近失；水下弹道穿入陆地（礁盘/岸坡）同样按陆地弹着处理。
+//     若 Land 将来提供 heightAt/elevationAt，则以其海拔作为地形面高度（照旧不在此造地形）。
 // ============================================================================
 import { clamp, deg2rad, rad2deg, normDeg, kn2mps } from '../core/util.js';
 import { applyHit as damageApplyHit } from './damage.js';
@@ -570,6 +574,53 @@ function hullDistance(ship, x, y) {
 }
 
 // ---------------------------------------------------------------------------
+// 陆地弹着（Land）
+// ---------------------------------------------------------------------------
+// 统一走 Land 的现有精确判定（isLandExact 含细小岛礁兜底），不在 ballistics 里造地形。
+// 低于此高度（m）才做陆地判定：弹丸在 600 m 以上绝不可能撞上二战太平洋的岛屿岸线，
+// 而这样能把绝大多数空中段的 isLandExact 调用省掉（性能）。
+const LAND_CHECK_ALT_M = 600;
+
+function landAt(land, x, y) {
+  if (!land || land.empty) return false;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  if (typeof land.isLandExact === 'function') return land.isLandExact(x, y);
+  if (typeof land.isLandAny === 'function') return land.isLandAny(x, y);
+  if (typeof land.isLand === 'function') return land.isLand(x, y);
+  return false;
+}
+
+// 地形面高度（米）：Land 无海拔 → 0（落到海平面即落到岸线）。有海拔查询能力时用其返回值。
+function landSurfaceM(land, x, y) {
+  if (!land) return 0;
+  const f = typeof land.heightAt === 'function' ? land.heightAt
+    : (typeof land.elevationAt === 'function' ? land.elevationAt : null);
+  if (!f) return 0;
+  const h = Number(f.call(land, x, y));
+  return Number.isFinite(h) ? Math.max(0, h) : 0;
+}
+
+function terrainImpact(world, p, x, y, z, opts = {}) {
+  const shell = p.shell;
+  const speed = opts.speed !== undefined ? opts.speed : Math.hypot(p.vx, p.vy, p.vz);
+  const fallAngle = opts.fallAngleDeg !== undefined ? opts.fallAngleDeg
+    : rad2deg(Math.atan2(-p.vz, Math.hypot(p.vx, p.vy)));
+  world.events.emit('gun.terrain', {
+    t: world.t, ship: p.shipId, side: p.side, byShip: p.shipId,
+    shooterName: (p.owner && p.owner.name) || p.shipId,
+    x: +x.toFixed(1), y: +y.toFixed(1), z: +(z || 0).toFixed(1),
+    ammo: shell.ammo, caliberMM: shell.caliberMM,
+    fallAngleDeg: (Number.isFinite(fallAngle) ? +fallAngle.toFixed(1) : null),
+    impactSpeedMps: +speed.toFixed(0), underwater: !!opts.underwater, hitTerrain: true,
+    trackId: p.trackId || null, targetShipId: p.targetShipId || null, salvoId: p.salvoId || null,
+    timeOfFlightS: +((world.t - p.t0)).toFixed(2),
+  });
+  const rec = _salvoRecord(world, p.salvoId);
+  if (rec) rec.terrainHits = (rec.terrainHits || 0) + 1;
+  p.alive = false;
+}
+
+// ---------------------------------------------------------------------------
 // spawnProjectile
 // ---------------------------------------------------------------------------
 export function spawnProjectile(world, spec) {
@@ -771,6 +822,13 @@ function waterImpact(world, p, prev) {
       ux += uvx * dt; uy += uvy * dt; uz += uvvz * dt;
       if (uz < -40) break;
       p.x = ux; p.y = uy; p.z = Math.max(uz, -40);
+      // 水线以下弹道穿入陆地（礁盘/岸坡）：同样按陆地弹着终止，不结算舰体命中
+      if (landAt(world.land, ux, uy)) {
+        terrainImpact(world, p, ux, uy, Math.max(0, uz), {
+          speed: Math.hypot(uvx, uvy, uvvz), fallAngleDeg: fallAngle, underwater: true,
+        });
+        return;
+      }
       const uw = checkUnderwaterShipHit(world, p);
       if (uw) {
         const fx = clamp(uw.loc.along / uw.dims.loa + 0.5, 0, 1);
@@ -865,8 +923,28 @@ export function updateProjectiles(world, dt) {
       if (!p.underwater) {
         const hit = findShipHit(world, prev, { x: p.x, y: p.y, z: p.z }, p.owner);
         if (hit) { applyShipHit(world, p, hit, prev, { x: p.x, y: p.y, z: p.z }); break; }
+        // —— 陆地弹着：弹丸落入陆地（岸线/岛屿）→ 终止弹道，不调用 applyShipHit、不计命中 ——
+        if (p.z <= LAND_CHECK_ALT_M) {
+          const overLand = landAt(world.land, p.x, p.y);
+          const surfZ = overLand ? landSurfaceM(world.land, p.x, p.y) : 0;
+          if (overLand && p.z <= surfZ) {
+            terrainImpact(world, p, p.x, p.y, surfZ);
+            break;
+          }
+          if (p.z <= 0) {
+            // 步进可能跨过岸线：用 z=0 插值落点再判一次陆地，避免"落在岛尖的水柱"
+            const f = prev.z > 0 ? prev.z / Math.max(1e-6, prev.z - p.z) : 0;
+            const ix = prev.x + (p.x - prev.x) * f, iy = prev.y + (p.y - prev.y) * f;
+            if (landAt(world.land, ix, iy)) {
+              terrainImpact(world, p, ix, iy, Math.max(0, landSurfaceM(world.land, ix, iy)));
+              break;
+            }
+            p.underwater = true;
+            waterImpact(world, p, prev);
+            break;
+          }
+        }
       }
-      if (p.z <= 0 && !p.underwater) { p.underwater = true; waterImpact(world, p, prev); break; }
       if (p.t0 && world.t - p.t0 > 260) { p.alive = false; break; }
     }
   }

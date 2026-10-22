@@ -22,6 +22,7 @@ const steps = [
   ['T10 殉爆语义', ['test/t10.magazine.test.mjs'], 120000],
   ['T11 战报/AAR/事件保留', ['test/t11.report.test.mjs'], 1200000],
   ['T12 AI 命令节流', ['test/t12.ai.test.mjs'], 180000],
+  ['T13 陆地遮蔽（视线/弹道）', ['test/t13.terrain.test.mjs'], 120000],
   ['T16 可访问性/高对比主题', ['test/t16.a11y.test.mjs'], 120000],
   ['T17 剧本触发器', ['test/t17.triggers.test.mjs'], 120000],
   ['火控探针 8km 静止（史实 15-25%）', ['test/lead.gunnery_probe.mjs', '8000'], 25000],
