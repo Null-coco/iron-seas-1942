@@ -323,6 +323,11 @@
         "Hood",
         "KingGeorgeV"
       ],
+      "triggers": [
+        { "id": "ds_contact", "at": 60, "action": { "kind": "MESSAGE", "text": "05:31 吕特晏斯：两艘大型军舰正从东南方接近，可能是战列巡洋舰。" } },
+        { "id": "ds_hood_speed", "at": 300, "action": { "kind": "ORDER", "side": "ALLIED", "order": "SET_SPEED", "params": { "kn": 28 }, "issuer": "霍兰德" } },
+        { "id": "ds_salvo5", "at": 720, "action": { "kind": "MESSAGE", "text": "06:00 俾斯麦第五次齐射命中胡德——史实殉爆时刻。" } }
+      ],
       "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 03:21（时差 -2.15 h）。"
     },
     {
@@ -736,6 +741,11 @@
         "Takao",
         "Tenryu",
         "Yubari"
+      ],
+      "triggers": [
+        { "id": "savo_entry", "at": 30, "action": { "kind": "MESSAGE", "text": "01:31 三川分队突入铁底湾，夜暗无月。" } },
+        { "id": "savo_squall", "at": 240, "action": { "kind": "SET_ENV", "visibilityNm": 4 } },
+        { "id": "savo_open_fire", "at": 480, "action": { "kind": "MESSAGE", "text": "01:38 探照灯与鱼雷同时发动——史实开火时刻。" } }
       ],
       "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地01:30（1942-08-08T14:50:00Z）为开局，史实依据：1942-08-09 当地 01:30 三川分队突入萨沃岛以北（史实开火 0130–0145）。"
     },

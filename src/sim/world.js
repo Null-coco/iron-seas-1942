@@ -4,7 +4,7 @@ import { RNG } from '../core/rng.js';
 import { EventBus } from '../core/events.js';
 import { GeoPlane } from '../core/geo.js';
 import { Ship } from './ship.js';
-import { Environment } from './env.js';
+import { Environment, seaStateFromWind } from './env.js';
 import { TrackManager } from './tracks.js';
 import { Land } from './land.js';
 import { DepthField } from './depth.js';
@@ -107,6 +107,16 @@ class RetainingEventBus extends EventBus {
   }
 }
 
+// 海况 → 风速反查（SET_ENV 触发器用；env 的海况由风浪谱导出，不能直接写 seaState）
+function windKnForSeaState(target) {
+  let best = 12, bestD = 1e9;
+  for (let w = 0; w <= 60; w += 0.5) {
+    const d = Math.abs(seaStateFromWind(w) - target);
+    if (d < bestD) { bestD = d; best = w; }
+  }
+  return best;
+}
+
 export class World {
   constructor(opts = {}) {
     this.uid = ++WORLD_SEQ;
@@ -136,6 +146,7 @@ export class World {
     this.radioRelayPenaltyS = 9;
     this.timeExtensionS = 0;      // 玩家累计延长的交战时长
     this.holdObjectivesUntil = -1; // 在此之前不因战役目标判定结束（舰队全灭仍然结束）
+    this._triggersFired = new Set();   // scenario.triggers 已触发记账（once 语义）
 
     const sp = this.scenario.start || {};
     this.geo = new GeoPlane(sp.lat !== undefined ? sp.lat : 0, sp.lon !== undefined ? sp.lon : 0);
@@ -230,6 +241,7 @@ export class World {
     for (const s of this.ships) if (s.isAfloat) updateSpotting(s, this, dt);
     this._updateSmoke(dt);
     this.aiTick(dt);
+    this._evalTriggers();
     this._record(dt);
     this.checkObjectives();
   }
@@ -498,9 +510,66 @@ export class World {
     }
     if (this.t < (this.holdObjectivesUntil || -1)) return;   // 玩家选择了延长交战：暂不按战役目标结束
     for (const o of objs) {
+      if (o.active === false) continue;        // 未激活的目标不参与判定（由 ACTIVATE_OBJECTIVE 触发器激活）
       if (!this._objectiveMet(o)) continue;
       this._finish(o.result || o.side, o.text || '达成战役目标');
       return;
+    }
+  }
+
+  // ---------------- 剧本触发器（scenario.triggers） ----------------
+  // 结构：[{ id, at?: 仿真秒, when?: 条件, whenAll?: [条件], whenAny?: [条件], once?: true, action }]
+  // 条件复用 objectives 的 condition schema（SINK/SINK_ANY/DISABLE/SINK_COUNT/SURVIVE/EXIT/PROTECT）。
+  // 动作：ORDER（source:'SCRIPT' 命令）/ SET_ENV（风、风向、能见度、海况）/ ACTIVATE_OBJECTIVE / MESSAGE。
+  _evalTriggers() {
+    const list = this.scenario && this.scenario.triggers;
+    if (!list || !list.length) return;
+    for (let i = 0; i < list.length; i++) {
+      const tr = list[i];
+      if (!tr) continue;
+      const id = tr.id || ('tr' + i);
+      if (tr.once !== false && this._triggersFired.has(id)) continue;
+      let fire = false;
+      if (tr.at !== undefined) fire = this.t >= tr.at;
+      else if (tr.when) fire = this._conditionMet(tr.when);
+      else if (tr.whenAll) fire = tr.whenAll.every((c) => this._conditionMet(c));
+      else if (tr.whenAny) fire = tr.whenAny.some((c) => this._conditionMet(c));
+      if (!fire) continue;
+      this._triggersFired.add(id);
+      this._applyTrigger(tr, id);
+    }
+  }
+  _conditionMet(cond) {
+    if (!cond || !cond.type) return false;
+    try { return !!this._objectiveMet({ condition: cond, side: cond.side || 'ALLIED' }); } catch (e) { return false; }
+  }
+  _applyTrigger(tr, id) {
+    const a = tr.action || {};
+    this.events.emit('scenario.trigger', { t: this.t, id, kind: a.kind || 'NONE' });
+    if (a.kind === 'ORDER') {
+      const issuer = a.issuer || '剧本';
+      const params = a.params || {};
+      if (a.shipId) {
+        const s = this.ship(a.shipId);
+        if (s && s.isAfloat) this.issueCommand({ side: s.side, shipId: s.id, kind: a.order, params, scope: a.scope || 'SHIP', source: 'SCRIPT', issuer }, {});
+      } else if (a.side) {
+        for (const s of this.afloatOf(a.side)) this.issueCommand({ side: s.side, shipId: s.id, kind: a.order, params, scope: a.scope || 'SHIP', source: 'SCRIPT', issuer }, {});
+      }
+    } else if (a.kind === 'SET_ENV') {
+      const env = this.env;
+      if (a.windKn !== undefined) { env.windKn = a.windKn; env._windTargetKn = a.windKn; }
+      if (a.windDirDeg !== undefined) env.windDirDeg = a.windDirDeg;
+      if (a.visibilityNm !== undefined) env.baseVisibilityNm = a.visibilityNm;
+      if (a.seaState !== undefined) { const w = windKnForSeaState(a.seaState); env.windKn = w; env._windTargetKn = w; }
+      this.events.emit('env.change', { t: this.t, kind: 'TRIGGER', windKn: env.windKn, windDirDeg: env.windDirDeg, visibilityNm: env.visibilityNm });
+    } else if (a.kind === 'ACTIVATE_OBJECTIVE') {
+      const objs = this.scenario.objectives || [];
+      const o = a.id !== undefined ? objs.find((x) => x.id === a.id) : objs[a.index || 0];
+      if (o) o.active = true;
+    } else if (a.kind === 'MESSAGE') {
+      const text = a.text || '';
+      this.events.emit('scenario.message', { t: this.t, text, id });
+      this._major(text);
     }
   }
 
