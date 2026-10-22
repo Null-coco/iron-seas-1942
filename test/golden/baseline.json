@@ -1,0 +1,61 @@
+{
+ "generatedAt": "2026-10-22T14:24:31.939Z",
+ "rows": [
+  {
+   "scenario": "denmark_strait_1941",
+   "seed": 19420604,
+   "seconds": 900,
+   "t": 900,
+   "winner": "NONE",
+   "sinks": 0,
+   "gunHits": 55,
+   "torpHits": 0,
+   "magazine": 4,
+   "friendlyFire": 0,
+   "shipsAfloat": 6,
+   "shipsTotal": 6
+  },
+  {
+   "scenario": "denmark_strait_1941",
+   "seed": 7,
+   "seconds": 900,
+   "t": 900,
+   "winner": "NONE",
+   "sinks": 0,
+   "gunHits": 116,
+   "torpHits": 0,
+   "magazine": 3,
+   "friendlyFire": 36,
+   "shipsAfloat": 6,
+   "shipsTotal": 6
+  },
+  {
+   "scenario": "savo_island_1942",
+   "seed": 19420604,
+   "seconds": 900,
+   "t": 900,
+   "winner": "NONE",
+   "sinks": 1,
+   "gunHits": 32,
+   "torpHits": 4,
+   "magazine": 1,
+   "friendlyFire": 0,
+   "shipsAfloat": 16,
+   "shipsTotal": 17
+  },
+  {
+   "scenario": "savo_island_1942",
+   "seed": 11,
+   "seconds": 900,
+   "t": 900,
+   "winner": "NONE",
+   "sinks": 0,
+   "gunHits": 36,
+   "torpHits": 0,
+   "magazine": 0,
+   "friendlyFire": 0,
+   "shipsAfloat": 17,
+   "shipsTotal": 17
+  }
+ ]
+}

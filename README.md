@@ -262,15 +262,36 @@ naval/
 | 测试 | 覆盖 | 运行 |
 | --- | --- | --- |
 | `test/lead.smoke.mjs` | 冻结内核冒烟（不依赖 data/） | `node test/lead.smoke.mjs` |
-| `test/lead.integration.mjs` | 全链路集成 | `node test/lead.integration.mjs` |
-| `test/t2.sensors.test.mjs` | 传感器/光学/航迹 | `node test/t2.sensors.test.mjs` |
-| `test/t4.gunnery.test.mjs` | 火控/弹道 | `node test/t4.gunnery.test.mjs` |
-| `test/t8.scenarios.test.mjs` | **11 个剧本静态校验**（本任务交付） | `node test/t8.scenarios.test.mjs` |
-| `tools/uicheck.mjs` | **UI 端到端**：真实鼠标/键盘驱动 headless Chrome；含「250 ms 慢点击不得被吞」「输入框打字不得改时间压缩」「模态框下令」等回归检查；输出截图与页面错误 | `node tools/uicheck.mjs --suite` |
+| `test/lead.integration.mjs` | 全链路集成（含陆地遮蔽 / 误击 / 条令） | `node test/lead.integration.mjs` |
+| `test/t2.sensors.test.mjs` | 传感器 / 光学 / 航迹 / 识别证据 | `node test/t2.sensors.test.mjs` |
+| `test/t3.damage.test.mjs` | 损伤与损管 | `node test/t3.damage.test.mjs` |
+| `test/t4.gunnery.test.mjs` | 火控 / 弹道（**2 项标定断言长期失败，见 §8.2**） | `node test/t4.gunnery.test.mjs` |
+| `test/t6.tactics.test.mjs` | 战术 AI 与鱼雷 | `node test/t6.tactics.test.mjs` |
+| `test/t8.scenarios.test.mjs` | **11 个剧本静态校验** | `node test/t8.scenarios.test.mjs` |
+| `test/t9.stats.test.mjs` | 命中统计口径（被命中不双计、近失单列） | `node test/t9.stats.test.mjs` |
+| `test/t10.magazine.test.mjs` | 殉爆语义（detonation 必沉、风险事件不沉） | `node test/t10.magazine.test.mjs` |
+| `test/t11.report.test.mjs` | 长局事件不截断 / 战报大事记 / AAR 时间线 | `node test/t11.report.test.mjs` |
+| `test/t12.ai.test.mjs` | LOCAL AI 命令节流后仍接战 | `node test/t12.ai.test.mjs` |
+| `test/t13.terrain.test.mjs` | 陆地遮蔽视线与弹道（gun.terrain） | `node test/t13.terrain.test.mjs` |
+| `test/t14.friendlyfire.test.mjs` | 敌我识别不确定与友军误伤 | `node test/t14.friendlyfire.test.mjs` |
+| `test/t15.ai_doctrine.test.mjs` | AI 条令：协同雷击 / 受损脱离 | `node test/t15.ai_doctrine.test.mjs` |
+| `test/t16.a11y.test.mjs` | 可访问性 / 高对比主题 / 触控断点 | `node test/t16.a11y.test.mjs` |
+| `test/t17.triggers.test.mjs` | 剧本触发器（时间 / 条件 / 目标激活） | `node test/t17.triggers.test.mjs` |
+| `test/golden.seed.test.mjs` | 黄金种子回归：固定 seed 的胜方/沉没/命中不漂移 | `npm run test:golden` |
+| `tools/uicheck.mjs` | **UI 端到端**：真实鼠标/键盘驱动 headless Chrome，含慢点击/打字/模态框回归 | `node tools/uicheck.mjs --suite` |
 
 `t8.scenarios.test.mjs` 校验内容：结构/字段完整性、id 唯一、经纬度合理、`class` 可被 `ShipDatabase.resolve` 解析、任意两舰间距 > 250 m、双方初始距离 > 2 km、objectives 的 `condition.type` 合法且 `shipIds` 存在且属于正确阵营、EXIT 区域开局不含本方舰船、`env` 五要素范围、`start.env` 与 `env` 一致、**开局当地平太阳时与史实对照**（调用真实 `Environment`，逐剧本打印「UTC／当地／史实值／Δmin／日高／光照／夜-昼」表并按 ±30 min 校验）、夜战剧本开局必须为夜间（`lightLevel < 0.15` 且日高 < 0）、以及用真实 `World` 装配沙盒剧本推进 60 s 的集成冒烟。数据文件缺失时输出 `PENDING DATA` 并以 0 退出（等待数据），不崩溃；数据齐全后仍有未解析 class 则判失败。
 
-最近一次结果：**PASS 1958 / FAIL 0 / WARN 0**，11 剧本、144 条舰位、舰级 0 个未解析。
+最近一次结果：**PASS 1967 / FAIL 0 / WARN 0**，11 剧本、144 条舰位、舰级 0 个未解析。
+
+### 8.2 已知失败（长期存在，非 A–E 引入）
+
+`test/t4.gunnery.test.mjs` 有 2 项标定断言一直失败，且与磨损标定无关（把 `WEAR_ACCUM_SCALE` 临时改回 1 复跑，数值不变）：
+
+1. **16 km 静止目标命中率均值 8.3%**，断言要求 2–8%（史实 15–18 km 约 3–5%）——略高于自设上限，属火控/散布标定问题；
+2. **「航迹位置错误使命中率下降」14.7% → 18.4%**——该探针用单次样本比较命中率，符号会翻转，疑似统计量不足而非物理错误。
+
+A1（陆地遮蔽）作者已用基线文件复现同样两项，确认不是 Wave 1 引入。建议下一轮：把第 2 条改成多种子均值比较，第 1 条重新标定散布/解算误差后收紧到史实带。
 
 ---
 
