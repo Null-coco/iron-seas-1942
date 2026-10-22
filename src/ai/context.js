@@ -5,7 +5,11 @@
 //   3) 航迹记忆：首次发现时间、历史距离与航向，用于判断"敌人在接近还是脱离、有没有机动"。
 //   4) 约束与条令：任务、史实背景、可用命令、指挥延迟、无线电静默、弹药经济、二战红线。
 // 只使用 world.visibleStateFor(side) 与事件可见性过滤 —— 绝不泄漏敌方真值。
+// B1：本舰损伤判定复用 local_ai.js 的 damageVerdict（与 LOCAL AI 同一口径），
+// 让 LLM/外部指挥官看到的"该不该退出战列线"和本地 AI 的判断一致，不会出现
+// "本地 AI 已判定重伤撤离、LLM 却还在让它冲锋"的分裂指挥。
 import { NMI, fmtClockHM, normDeg } from '../core/util.js';
+import { damageVerdict, TORPEDO_DOCTRINE, DAMAGE_DOCTRINE } from './local_ai.js';
 
 const CMD_SPEC = [
   'SET_COURSE{heading:0-359}  设定真航向',
@@ -80,6 +84,13 @@ export class AIContext {
     L.push('  · 驱逐舰夜间前出 2-6km 抢占雷击阵位，发射后立即转向脱离并施放烟幕。');
     L.push('  · 弹药库附近起火优先注水；进水导致横倾时优先堵漏与反击水；航速是生命，动力舱受损优先抢修。');
     L.push('  · 避免被占据 T 字横头；受伤严重（航速骤降/横倾大）就退出战斗，不要送死。');
+    // B1 条令（与 LOCAL AI 共用同一套阈值常量，见 src/ai/local_ai.js）
+    L.push('  · 雷击要协同：同一目标至少 2 舰组队齐射，各自按目标航向/航速解提前角，扇面按航迹误差裁开、互不重叠；' +
+      '同一目标两批齐射间隔≥' + TORPEDO_DOCTRINE.groupWindowS + 's；单舰不要对同一目标重复放雷（' + TORPEDO_DOCTRINE.targetRepeatS + 's 内）。');
+    L.push('  · 受损脱离：进水≥' + Math.round(DAMAGE_DOCTRINE.floodFrac * 100) + '% 储备浮力、航速上限<设计航速 ' +
+      Math.round(DAMAGE_DOCTRINE.speedFrac * 100) + '%、主炮损失≥' + Math.round(DAMAGE_DOCTRINE.gunLoss * 100) +
+      '%、横倾≥' + DAMAGE_DOCTRINE.listDeg + '° 任一达阈 → WITHDRAW + SMOKE，向远离敌人/本方方向脱离，派就近僚舰屏护。');
+    L.push('  · 损管优先级：弹药库威胁 > 进水/横倾 > 火灾 > 机动性，用 DC_PRIORITY 指定一次即可，不要反复重发。');
     L.push('');
     L.push('输出格式（严格 JSON，不要输出任何其他文字，不要输出思考过程）：');
     L.push('{"reasoning":"中文战术判断，150字内","chat":"可选电报","commands":[{"shipId":"...","kind":"SET_COURSE","params":{"heading":240},"note":"意图"}],"intent":"本阶段作战意图一句话"}');
@@ -95,6 +106,11 @@ export class AIContext {
       '，海况 ' + st.environment.seaState + '，风 ' + st.environment.windKn + 'kn/' + st.environment.windDirDeg + '°，能见度 ' + st.environment.visibilityNm + 'nm）===');
 
     L.push('【我方编队】');
+    // B1：本舰损伤条令判定（与 LOCAL AI 同一口径 damageVerdict；只用本方真值，不涉及敌情）
+    const verdictById = new Map();
+    try {
+      for (const sh of (this.world.afloatOf ? this.world.afloatOf(this.side) : [])) verdictById.set(sh.id, damageVerdict(sh));
+    } catch (e) { /* 简报不能因为损伤判定失败而中断 */ }
     for (const s of st.ownShips) {
       const dmg = [];
       if (s.floodedPct > 0.5) dmg.push('进水' + s.floodedPct + '%');
@@ -110,6 +126,9 @@ export class AIContext {
         (dmg.length ? ' 损伤:' + dmg.join('/') : ' 无损伤') +
         ' 当前命令:航向' + s.commanded.heading + '/速度' + s.commanded.speed + (s.commanded.firing ? '/射击中(' + (s.commanded.targetTrackId || '未指定目标') + ')' : '/未开火') +
         ' 损管优先:' + ((s.dc && s.dc.priority) || 'flooding'));
+      const v = verdictById.get(s.id);
+      if (v && v.withdraw) L.push('      ★条令判定：已达脱离阈值（' + v.triggers.join('/') + '）→ 应 WITHDRAW+SMOKE 脱离，不要再派它冲锋');
+      else if (v && v.stable === false && v.score > 0.25 && !this.compact) L.push('      条令观察：损伤偏重（进水' + Math.round(v.flood * 100) + '% 航速上限' + Math.round(v.speedFrac * 100) + '% 损伤分' + v.score.toFixed(2) + '），注意脱离阈值');
     }
 
     L.push('【已知敌情/航迹】' + (st.tracks.length ? '' : '（暂无目标）'));

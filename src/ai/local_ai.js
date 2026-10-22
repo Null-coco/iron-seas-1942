@@ -19,6 +19,11 @@
 //   舷角 90° 投影全长、命中概率最高（见 torpedo.js 命中几何），故要求在 60~120° 窗口开火。
 // * 受伤舰退出：进水/火灾/横倾/失速/主炮损失加权成损伤分，超过阈值即 WITHDRAW+烟幕。
 // * 损管优先级：弹药库受威胁 > 进水速率超过排水能力 > 火灾蔓延 > 机动性（能跑才有活路）。
+//   B1：按主要损伤类型给出 flooding/fire/magazine/mobility，同优先级不重发（见 dcMode）。
+// * B1 协同雷击：同一目标由 ≥2 舰编组齐射，各舰按目标航向/航速解提前角，扇面按航迹
+//   误差裁开后互不重叠（见 TORPEDO_DOCTRINE / pickFanGroup）；单舰对同一目标只打一次。
+// * B1 受损脱离：进水/储备浮力 ≥5%、航速上限 <72%、主炮损失 ≥2/3、横倾 ≥15° 任一达阈
+//   即退出战列线、施烟、向远离敌方向脱离，并派就近僚舰到朝敌一侧 2.2km 屏护（见 DAMAGE_DOCTRINE）。
 // * 避雷机动：1s 反应回路，一旦目视发现鱼雷航迹（航迹可见性差异极大，见 torpedo.js），
 //   立即转向与鱼雷航向平行（comb the wakes）并加到全速，使艏艉线与雷迹平行、投影只有舰宽。
 // * 夜间/低能见度保守机动：减速、收紧队形、不主动远距开火（炮口闪光暴露阵位），
@@ -39,6 +44,87 @@ const ENEMY_CALIBER = Object.freeze({ BB: 380, BC: 356, CA: 203, CL: 152, DD: 12
 const ARMORED_TYPES = Object.freeze({ BB: 1, BC: 1, CA: 1 });
 const HVU_TYPES = Object.freeze({ BB: 1, BC: 1, CV: 1, CA: 1 });
 const TORPEDO_TYPES_ALLOWED = Object.freeze({ DD: 1, CL: 1, CA: 1, BC: 1 });
+
+// ── B1 条令阈值（可调；new LocalAI(side,{doctrine:{torpedo:{...},damage:{...}}}) 覆盖）──
+// 这些常量是「本地 AI 的条令」，不是物理参数：改它们只会改 AI 的判断，不会改仿真内核。
+// 全部带出处/动机注释，便于复盘时判断"AI 的决定是条令要求还是 bug"。
+
+// 协同雷击：1942 年水雷战队的做法是"分队齐射"——同一目标由 2 舰以上各自解提前角，
+// 扇面按目标航迹误差裁开、互不重叠，分批到达打乱对方规避；而不是单舰一有窗口就把
+// 4~6 管九三式一次泼出去（既浪费雷，也把战列线航向搅乱）。
+export const TORPEDO_DOCTRINE = Object.freeze({
+  nightRangeM: 13000,     // 夜战最大发射距离：九三式 48kn 档射程 20km，取 0.65 倍保证命中窗口
+  dayRangeM: 8500,        // 日间：雷迹易被发现，发射窗口收紧（萨沃岛/塔萨法隆加夜战 1.5~4km）
+  minRangeM: 900,         // 过近：陀螺/定深来不及稳定，且目标能立刻规避
+  aspectMinDeg: 45,       // 目标舷角窗口下限（|sin|≈0.7，命中投影足够）
+  aspectMaxDeg: 135,      // 上限（>135° 为迎头/尾追，投影只剩舰宽量级）
+  nightTofS: 300,         // 命中窗口：鱼雷飞行 ≤300s（目标最多有 5 分钟规避时间）
+  dayTofS: 420,
+  singleAspectMinDeg: 55, // 单舰（编不成组）窗口更严：没有交叉扇面兜底
+  singleAspectMaxDeg: 125,
+  singleMaxRangeM: 8000,  // 单舰只在 ≤8km 内补射，远距留给编组齐射
+  minGroupSize: 2,        // 协同齐射最少舰数（任务要求 ≥2）
+  maxPerGroup: 3,         // 一批最多 3 舰（再多就分目标，避免一窝蜂）
+  groupWindowS: 45,       // 同一目标两批齐射的最小间隔
+  targetRepeatS: 420,     // 单舰对同一目标不得重复雷击（换目标才重新解算）
+  reloadS: 200,           // 同舰两次雷击最小间隔（含转向脱离与再装填）
+  fanGapDeg: 2,           // 相邻舰雷扇之间的最小空隙（扇面不重叠的判据）
+  fanMinDeg: 2,
+  fanMaxDeg: 10,
+  attackRunMaxShips: 3,   // 同时前出抢占雷击位的舰数上限（别把战列线抽空）
+  attackRunRefreshS: 140, // 占位航向重算间隔（避免每 8s 改一次航向）
+  attackRunRangeM: 16000, // 只对这个距离内的目标做突击占位
+  tubesReserve: 2,        // 保留管次，避免一轮打光
+});
+
+// 受损脱离：进水/储备浮力、航速上限比例、主炮损失 任一达到阈值即退出战列线。
+// 实测标定：一发九三式（TNT 当量 620kg）命中 1942 年重巡 → 进水约 5%~7% 储备浮力、
+// 航速上限掉到 65%~70%（见 t15 的诊断输出），这正是"重伤"的物理量级。
+export const DAMAGE_DOCTRINE = Object.freeze({
+  floodFrac: 0.05,        // 进水 / 储备浮力
+  speedFrac: 0.72,        // 航速上限 / 设计航速
+  gunLoss: 0.66,          // 主炮损失比例（≈"主炮全废"；丹麦海峡 PoW 损失过半即脱离）
+  listDeg: 15,            // 横倾
+  score: 0.55,            // 综合损伤分（与 evaluateDamage 同口径）
+  // 滞回：损伤回落到下沿以下并稳定 rejoinHoldS 才归队，避免阈值附近来回切换
+  rejoin: Object.freeze({ floodFrac: 0.03, speedFrac: 0.82, gunLoss: 0.5, listDeg: 10, score: 0.38 }),
+  rejoinHoldS: 180,
+  smokeOnS: 45,           // 脱离中重复施烟的最小间隔（烟幕要持续覆盖）
+  escortRangeM: 2200,     // 掩护僚舰阵位：在脱离舰朝敌一侧 2.2km
+  escortHoldS: 60,        // 掩护任务的刷新时间（防止每 tick 重发 FORMATION）
+});
+
+// 受损评估（纯函数：AI、简报、测试共用同一口径）
+export function evaluateDamage(ship) {
+  const flood = ship.floodedM3 / Math.max(1, ship.reserveBuoyancyM3);
+  const fires = ship.compartments.filter((c) => c.fire > 0.1).length;
+  const list = Math.abs(ship.list || 0);
+  const spdMax = Math.max(1, ship.data.speedMax_kn || 25);
+  const speedFrac = clamp((ship.speedCapKn || spdMax) / spdMax, 0, 1);
+  const speedLoss = 1 - speedFrac;
+  const mainTotal = (ship.batteries || []).filter((b) => b.role === 'main').length;
+  const mainAlive = (ship.mainBatteries || []).filter((b) => !b.destroyed && b.health > 0.15).length;
+  const gunLoss = mainTotal ? 1 - mainAlive / mainTotal : 0;
+  const crewLoss = 1 - clamp(ship.crew / Math.max(1, ship.crew0), 0, 1);
+  const score = clamp(flood * 1.8 + fires * 0.07 + list / 90 + speedLoss * 0.6 + gunLoss * 0.5 + crewLoss * 0.4, 0, 2);
+  return { score, flood, fires, list, gunLoss, speedLoss, speedFrac, mainTotal, mainAlive, crewLoss };
+}
+
+// 脱离判定：withdraw=达阈值；stable=已回落到滞回下沿（可归队）。
+// context.js 的态势简报直接复用它，保证"AI 的判断"和"给 LLM 看的判断"同一口径。
+export function damageVerdict(ship, dmg, doctrine) {
+  const D = doctrine || DAMAGE_DOCTRINE;
+  const d = dmg || evaluateDamage(ship);
+  const R = D.rejoin || DAMAGE_DOCTRINE.rejoin;
+  const triggers = [];
+  if (d.flood >= D.floodFrac) triggers.push('进水' + Math.round(d.flood * 100) + '%');
+  if (d.speedFrac <= D.speedFrac) triggers.push('航速上限' + Math.round(d.speedFrac * 100) + '%');
+  if (d.gunLoss >= D.gunLoss) triggers.push('主炮损失' + Math.round(d.gunLoss * 100) + '%');
+  if (d.list >= D.listDeg) triggers.push('横倾' + Math.round(d.list) + '°');
+  if (d.score >= D.score) triggers.push('损伤分' + d.score.toFixed(2));
+  const stable = d.flood <= R.floodFrac && d.speedFrac >= R.speedFrac && d.gunLoss <= R.gunLoss && d.list <= R.listDeg && d.score <= R.score;
+  return Object.assign({ withdraw: triggers.length > 0, stable, triggers }, d);
+}
 
 // ── 决战距离条令（decisive range）─────────────────────────────────────────────
 // 史实：1941-42 年的火控在 20km 以上命中率趋近于 0，舰长必须接近到有效交战距离：
@@ -98,19 +184,31 @@ export class LocalAI {
     // 只会让它在"旧令→新令"之间来回摆（实测第一次瓜岛 40 分钟 order.issue=5482，
     // SET_COURSE 每 8.1s 一条而航向中位变化只有 1.6°）。因此对操舵/航速类命令加
     // 「时间节流 + 数值滞回」，开火/换靶命令加「重复抑制 + 目标连续性」，避雷机动豁免。
-    this.courseHoldS = opts.courseHoldS !== undefined ? opts.courseHoldS : 20;          // 同舰两次航向命令最小间隔
-    this.courseDeadbandDeg = opts.courseDeadbandDeg !== undefined ? opts.courseDeadbandDeg : 8;   // 航向死区
-    this.courseForceDeadbandDeg = opts.courseForceDeadbandDeg !== undefined ? opts.courseForceDeadbandDeg : 8; // 强制机动（接近/撤退/雷击脱离）死区
-    this.speedHoldS = opts.speedHoldS !== undefined ? opts.speedHoldS : 20;            // 航速命令最小间隔
-    this.speedDeadbandKn = opts.speedDeadbandKn !== undefined ? opts.speedDeadbandKn : 1.5;       // 航速死区（节）
+    // B1 调参：交战节奏加快后（雷击占位/受损脱离/僚舰屏护），20s 的航向/航速节流仍会
+    // 让命令量随舰数线性上涨。C2 延迟本身 4~12s，25~30s 的保持间隔不会让舰"反应迟钝"，
+    // 但能把重复微调挡在门外（萨沃岛 900s 实测 767→约 650 条）。
+    this.courseHoldS = opts.courseHoldS !== undefined ? opts.courseHoldS : 34;          // 同舰两次航向命令最小间隔
+    this.courseDeadbandDeg = opts.courseDeadbandDeg !== undefined ? opts.courseDeadbandDeg : 10;  // 航向死区
+    this.courseForceDeadbandDeg = opts.courseForceDeadbandDeg !== undefined ? opts.courseForceDeadbandDeg : 10; // 强制机动（接近/撤退/雷击脱离）死区
+    this.speedHoldS = opts.speedHoldS !== undefined ? opts.speedHoldS : 45;            // 航速命令最小间隔
+    this.speedDeadbandKn = opts.speedDeadbandKn !== undefined ? opts.speedDeadbandKn : 2.0;       // 航速死区（节）
     this.rudderHoldS = opts.rudderHoldS !== undefined ? opts.rudderHoldS : 20;          // 舵令最小间隔（暂无调用方，保留）
     this.rudderDeadbandDeg = opts.rudderDeadbandDeg !== undefined ? opts.rudderDeadbandDeg : 5;   // 舵角死区
     this.fireHoldS = opts.fireHoldS !== undefined ? opts.fireHoldS : 60;               // 同目标重复 FIRE 的最小间隔（校射要观察弹着再修正，约 1 分钟一轮接近真实节奏；持续齐射模式下不影响实际射速）
     this.fireModeHoldS = opts.fireModeHoldS !== undefined ? opts.fireModeHoldS : 20;   // SPOT/FULL 模式切换的最小间隔
     this.targetHoldS = opts.targetHoldS !== undefined ? opts.targetHoldS : 60;         // 换靶最小间隔（目标未丢失时）
     this.targetLostHoldS = opts.targetLostHoldS !== undefined ? opts.targetLostHoldS : 45; // 目标短暂丢失时的停火抑制窗
+    this.targetChurnHoldS = opts.targetChurnHoldS !== undefined ? opts.targetChurnHoldS : 12; // 航迹翻新（失跟-重捕）时按住原目标不换靶的窗口
     this.starHoldS = opts.starHoldS !== undefined ? opts.starHoldS : 90;               // 单舰照明弹最小间隔
     this.starFleetHoldS = opts.starFleetHoldS !== undefined ? opts.starFleetHoldS : 30; // 全队照明弹最小间隔（别所有舰一起打）
+    // B1 条令阈值：可逐项覆盖（测试/调参用），默认值见模块顶部 DAMAGE_DOCTRINE / TORPEDO_DOCTRINE
+    const docOpts = opts.doctrine || {};
+    // doctrine.enabled=false → 回到 B1 之前的旧条令（旧雷击/旧脱离阈值/旧近岸减速）。
+    // 用途：① 回归对照（test/t15 用同种子跑"无条令基线"，不依赖别的人改动）；② 排障时
+    // 一键关掉新条令，确认行为差异来自条令而不是仿真内核。
+    this.doctrineOn = !(docOpts && docOpts.enabled === false);
+    this.torpDoctrine = Object.assign({}, TORPEDO_DOCTRINE, docOpts.torpedo || {});
+    this.dmgDoctrine = Object.assign({}, DAMAGE_DOCTRINE, docOpts.damage || {});
     this.mem = new Map();
     this.fleet = { phase: 'SEARCH', threatAxisDeg: null, enemyValue: 0, ownValue: 0, ratio: 1, focusTrackId: null, focusLabel: '' };
   }
@@ -130,7 +228,11 @@ export class LocalAI {
         evadeUntil: -1e9, evadeHeading: null, evacuating: false, withdraw: false, dcMode: null, lastStationT: -1e9, screenStation: null,
         // 节流/滞回状态：上次实际下达的航向与航速（不是"当前保持值"，后者会因 C2 延迟滞后）
         lastCourseWant: undefined, lastSpeedWant: undefined, lastRudder: undefined, lastRudderT: -1e9,
-        lastFireT: -1e9, lastAssignT: -1e9, lastTargetT: -1e9, gateFailN: 0 };
+        lastFireT: -1e9, lastAssignT: -1e9, lastTargetT: -1e9, gateFailN: 0,
+        // B1 条令状态：脱离/归队（带滞回）、损管优先级去重、雷击重复抑制、掩护任务
+        withdrawT: -1e9, rejoinStableT: null, verdict: null,
+        dcModeT: -1e9, torpTargetAt: {}, torpRunT: -1e9, escortOf: null, escortT: -1e9,
+        lastRetreatSmoke: -1e9, lastEscortT: -1e9 };
       this.mem.set(ship.id, m);
     }
     return m;
@@ -204,12 +306,32 @@ export class LocalAI {
     return !!this.order(world, { shipId: ship.id, kind: 'SET_COURSE', params: { heading: want } }, evade);
   }
   setSpeed(world, ship, kn, mem, force = false, evade = false) {
-    let want = clamp(kn, 0, ship.data.speedMax_kn || 30);
-    // 近岸减速：真实舰长在浅水/狭水道会主动减速（既避免搁浅，也减少操舵迟滞）
-    if (!evade && world.land && !world.land.empty) {
+    // 取整到 1 节：受损舰的 speedCapKn 会随进水缓慢下降，浮点值每 2 节就跨一次死区，
+    // 不取整会让"航速上限在掉"本身变成一串 SET_SPEED 命令。
+    let want = Math.round(clamp(kn, 0, ship.data.speedMax_kn || 30));
+    // ── 近岸减速（B1 修正）：看「前方航路」是否被陆地/浅滩挡住，而不是看离岸多远 ──
+    // 旧实现只要离岸 <2.5km 就把航速压到 10 节：萨沃岛剧本里日军巡洋舰起始位置离瓜岛
+    // 北岸只有 0.4~2.8km，结果整条战列线用 10 节爬行，900s 只接近 11km，交战与雷击都
+    // 无从谈起（实测 900s 内 torp.launch=1）。真实舰长在平行岸线航行时保持编队航速，
+    // 只在航路被挡/水浅时才减速；这里按 1.5~2 个舰长距离取样前方航路。
+    if (!evade && world.land && !world.land.empty && !this.doctrineOn) {
+      // 旧条令（B1 之前）：只看离岸距离，离线 2.5km 内压到 10 节（会被岸线挤成爬行）
       const dl = world.land.distanceToLand(ship.pos.x, ship.pos.y, 9000);
       if (dl < 2500) want = Math.min(want, 10);
       else if (dl < 5000) want = Math.min(want, 18);
+    } else if (!evade && world.land && !world.land.empty) {
+      const big = (ship.data.loa_m || 100) > 170;
+      const probeM = big ? 2400 : 1600;
+      const h0 = ship.commanded.heading !== undefined ? ship.commanded.heading : ship.heading;
+      const draft = (ship.draftM || 6) + 2.0;      // 富裕水深 2m（搁浅余量）
+      let blocked = false;
+      for (const d of [probeM, probeM * 2]) {
+        const p = destPoint(ship.pos, d, h0);
+        if (world.land.isLandExact(p.x, p.y)) { blocked = true; break; }
+        if (world.depth && !world.depth.empty && !world.depth.isNavigable(p.x, p.y, draft, 1)) { blocked = true; break; }
+      }
+      if (blocked) want = Math.min(want, 8);                       // 航路被挡：减速+由 setCourse 改向
+      else if (world.land.distanceToLand(ship.pos.x, ship.pos.y, 2000) < 700) want = Math.min(want, 18); // 贴岸仅谨慎
     }
     // 航速命令节流：同上（force/evade 语义与 setCourse 一致）
     if (!evade) {
@@ -261,23 +383,36 @@ export class LocalAI {
         notes.push('【避雷】' + ship.name + ' 发现' + (t0.wakeType === 'OXYGEN' ? '淡航迹' : '航迹') +
           ' 距' + Math.round(t0.rangeM) + 'm CPA' + Math.round(t0.cpaM) + 'm → comb wake ' + Math.round(h) + '° 全速');
       }
-      // 损管优先级
+      // ── 损管优先级（B1）：按主要损伤类型发 DC_PRIORITY，同一优先级不重发 ──────
+      // 去重有两层：① 与本舰上次「AI 下发的优先级」不同才发；② 若舰上实际优先级被
+      // 外部/玩家改掉，也要等 dcModeT 冷却过了才重新接管（避免 AI 与玩家每 tick 抢）。
       const mode = this.dcMode(ship, mem, world.t);
-      if (mode && mode !== mem.dcMode) {
-        mem.dcMode = mode;
+      const actualMode = ship.dcPriority || 'flooding';
+      if (mode && (mode !== mem.dcMode ||
+          (actualMode !== mode && world.t - (mem.dcModeT || -1e9) > this.dmgDoctrine.smokeOnS))) {
+        mem.dcMode = mode; mem.dcModeT = world.t;
         this.order(world, { shipId: ship.id, kind: 'DC_PRIORITY', params: { mode } });
         notes.push('【损管】' + ship.name + ' 优先级=' + mode);
       }
-      // 受损加剧则立即退出（不等 8s 决策周期）
+      // ── 受损脱离（B1）：不等 8s 决策周期，达阈值当场退出战列线 ──────────────
       const dmg = this.damageScore(ship);
-      if (!mem.withdraw && this.shouldWithdraw(ship, dmg, world)) {
-        mem.withdraw = true;
-        this.order(world, { shipId: ship.id, kind: 'WITHDRAW', params: {} });
-        const h = this.retreatHeading(world, ship);
-        this.setCourse(world, ship, h, mem, true);
-        this.setSpeed(world, ship, (ship.data.speedMax_kn || 30) * 0.95, mem, true);
-        this.smoke(world, ship, true);
-        notes.push('【退出】' + ship.name + ' 损伤分' + dmg.score.toFixed(2) + ' → 航向' + Math.round(h) + ' 施烟');
+      const verdict = damageVerdict(ship, dmg, this.dmgDoctrine);
+      mem.verdict = verdict;
+      const withdrawNow = this.doctrineOn ? verdict.withdraw : this.shouldWithdraw(ship, dmg, world);
+      if (!mem.withdraw && withdrawNow) {
+        mem.withdraw = true; mem.withdrawT = world.t; mem.rejoinStableT = null;
+        this.leaveLine(world, ship, mem, notes, verdict);
+      } else if (mem.withdraw && this.doctrineOn) {
+        // 滞回：损伤回落到下沿并连续稳定 rejoinHoldS 才归队（阈值附近不来回切）
+        if (verdict.stable) {
+          if (mem.rejoinStableT === null || mem.rejoinStableT === undefined) mem.rejoinStableT = world.t;
+          if (world.t - mem.rejoinStableT >= this.dmgDoctrine.rejoinHoldS) {
+            mem.withdraw = false; mem.withdrawT = -1e9; mem.rejoinStableT = null;
+            if (this.fleet.withdrawing) delete this.fleet.withdrawing[ship.id];
+            this.smoke(world, ship, false);
+            notes.push('【归队】' + ship.name + ' 损管见效（进水' + Math.round(verdict.flood * 100) + '% 航速上限' + Math.round(verdict.speedFrac * 100) + '%）→ 回归战列线');
+          }
+        } else mem.rejoinStableT = null;
       }
     }
     if (notes.length) {
@@ -303,6 +438,9 @@ export class LocalAI {
       // 单舰脱离：WITHDRAW 命令只置标记不设航向，必须由 AI 操舵——否则"想撤"的舰
       // 仍按旧航向朝敌航行（实测俾斯麦一路从 18km 缩到 7km 被打瘫）
       for (const ship of mine) { const mem = this.memFor(ship); if (mem.withdraw) this.retreatShip(world, ship, mem, R); }
+      // B1：给脱离舰派就近僚舰掩护（屏护站位）——必须在 maneuver/screen 之前定，
+      // 这两个函数看到 escortOf 就让位，避免同一 tick 对同一艘僚舰发两条航向命令。
+      if (this.doctrineOn) this.escortWithdrawers(world, mine, enemies, R);
       this.maneuver(world, mine, enemies, R);
       this.screen(world, mine, enemies, R);
       this.torpedoAttack(world, mine, enemies, R);
@@ -414,38 +552,59 @@ export class LocalAI {
   }
 
   damageScore(ship) {
-    const flood = ship.floodedM3 / Math.max(1, ship.reserveBuoyancyM3);
-    const fires = ship.compartments.filter((c) => c.fire > 0.1).length;
-    const list = Math.abs(ship.list || 0);
-    const speedLoss = 1 - clamp((ship.speedCapKn || 0) / Math.max(1, ship.data.speedMax_kn || 25), 0, 1);
-    const mainTotal = (ship.batteries || []).filter((b) => b.role === 'main').length;
-    const mainAlive = (ship.mainBatteries || []).filter((b) => !b.destroyed && b.health > 0.15).length;
-    const gunLoss = mainTotal ? 1 - mainAlive / mainTotal : 0;
-    const crewLoss = 1 - clamp(ship.crew / Math.max(1, ship.crew0), 0, 1);
-    const score = clamp(flood * 1.8 + fires * 0.07 + list / 90 + speedLoss * 0.6 + gunLoss * 0.5 + crewLoss * 0.4, 0, 2);
-    return { score, flood, fires, list, gunLoss, speedLoss };
+    // 口径统一到模块级 evaluateDamage（AI / 简报 / 测试共用）
+    return evaluateDamage(ship);
   }
   shouldWithdraw(ship, dmg, world) {
     // 任务已达成的舰：带伤就撤（保留破交本钱），不再原地硬拼
     if (world && this.objectiveAchieved(world)) {
       if (dmg.score > 0.35 || dmg.flood > 0.12 || dmg.list > 8) return true;
     }
-    // ── 机动性 / 火控是"生存与任务能力"的硬指标 ──────────────────────────────
-    // 史实：被拦截的破交舰一旦掉速就再无生路（俾斯麦最后正是被鱼雷机打掉舵机后失速）。
-    // 旧判据只看损伤分/进水/横倾，对"速度上限 27→10 节""指挥仪全毁"毫无反应，
-    // 于是一路打到被判定"丧失机动能力"——这是本剧本里轴心 AI 最大的智力缺口。
-    const spdMax = Math.max(1, ship.data.speedMax_kn || 25);
-    const speedFrac = clamp((ship.speedCapKn || spdMax) / spdMax, 0, 1);
-    if (speedFrac < 0.62) return true;                       // 掉速到六成以下：再打下去必被判定瘫痪
+    // B1 阈值表（进水% / 航速上限 / 主炮损失 / 横倾 / 综合损伤分，见 DAMAGE_DOCTRINE）
+    if (this.doctrineOn) {
+      if (damageVerdict(ship, dmg, this.dmgDoctrine).withdraw) return true;
+    } else {
+      // 旧阈值（B1 之前）：只对"明显要沉/已经瘫痪"的损伤反应，这正是旧 AI 挨打不走的缺口
+      const spdMax = Math.max(1, ship.data.speedMax_kn || 25);
+      if (clamp((ship.speedCapKn || spdMax) / spdMax, 0, 1) < 0.62) return true;
+      if (dmg.score > 0.6 || dmg.flood > 0.33 || dmg.list > 18) return true;
+      const heavy = ship.type === 'BB' || ship.type === 'BC' || ship.type === 'CA';
+      if (heavy && dmg.gunLoss > 0.5) return true;
+    }
+    // 火控是"还能不能还手"的硬指标：指挥仪全毁（非驱逐舰）或只剩一台也要脱离
+    // （史实：丹麦海峡 PoW 主炮损失过半、火控受损即脱离，没有主力舰在原地挨打）
     const dirs = ship.directors || [];
     const dirsAlive = dirs.filter((d) => !d.destroyed && (d.health === undefined || d.health > 0.2)).length;
-    if (dirs.length && dirsAlive === 0 && ship.type !== 'DD') return true;   // 火控全毁：已无法有效还击
-    // 火力大幅削弱即脱离：史实丹麦海峡 PoW 打了 6 分钟、10 门主炮只剩 2 门就脱离，
-    // 没有哪艘主力舰会在主炮损失过半时继续原地对射。这条对双方都适用。
     const heavyUnit = ship.type === 'BB' || ship.type === 'BC' || ship.type === 'CA';
-    if (heavyUnit && dmg.gunLoss > 0.5) return true;
-    if (heavyUnit && dirs.length >= 2 && dirsAlive <= 1) return true;        // 指挥仪只剩一台
-    return dmg.score > 0.6 || dmg.flood > 0.33 || dmg.list > 18 || (dmg.gunLoss > 0.6 && ship.type === 'BB');
+    if (heavyUnit && dirs.length && dirsAlive === 0) return true;
+    if (heavyUnit && dirs.length >= 2 && dirsAlive <= 1) return true;
+    return false;
+  }
+
+  // ── 受损脱离条令（B1）：退出战列线 → 施烟 → 向本方/远离敌方向脱离 ──────────
+  leaveLine(world, ship, mem, notes, verdict) {
+    const v = verdict || mem.verdict || damageVerdict(ship, this.damageScore(ship), this.dmgDoctrine);
+    this.order(world, { shipId: ship.id, kind: 'WITHDRAW', params: {} });
+    const h = this.retreatHeading(world, ship);
+    this.setCourse(world, ship, h, mem, true);
+    // 航速：按「剩余航速上限」而非设计航速下令（动力舱已损时命令 30 节只会让它掉队）
+    const kn = Math.min(ship.data.speedMax_kn || 30, ship.speedCapKn || (ship.data.speedMax_kn || 30));
+    this.setSpeed(world, ship, kn, mem, true);
+    if (this.smoke(world, ship, true) && notes) notes.push('【烟幕】' + ship.name + ' 施放烟幕掩护脱离');
+    mem.lastRetreatSmoke = world.t;
+    this.fleet.withdrawing = this.fleet.withdrawing || {};
+    this.fleet.withdrawing[ship.id] = world.t;
+    if (notes) notes.push('【退出】' + ship.name + ' 判定重伤（' + v.triggers.join('/') + '）→ 脱离战列线 航向' + Math.round(h) + '° 施烟');
+  }
+  // 威胁方位（用于避开敌人、派僚舰掩护）：优先用编队威胁轴，其次用最近敌舰方位
+  threatBearing(world, ship) {
+    if (this.fleet.threatAxisDeg !== null && this.fleet.threatAxisDeg !== undefined) return this.fleet.threatAxisDeg;
+    let best = null, bd = 1e9;
+    for (const f of world.afloatOf(world.opposite(this.side))) {
+      const d = dist2d(ship.pos, f.pos);
+      if (d < bd) { bd = d; best = f; }
+    }
+    return best ? bearing2d(ship.pos, best.pos) : null;
   }
 
   // ── 任务感知（战役目标）────────────────────────────────────────────────────
@@ -690,6 +849,11 @@ export class LocalAI {
       if (mem.targetTrackId && mem.targetTrackId !== best.e.tr.id) {
         const curStill = enemies.some((x) => x.tr.id === mem.targetTrackId);
         if (curStill && world.t - mem.lastAssignT < this.targetHoldS) continue;
+        // B1：当前目标「刚失跟」（航迹 id 翻新 / 烟幕·陆地 LOS 遮断）时按住 targetChurnHoldS
+        // 不换靶：T2 航迹在海岸/烟幕附近会反复失跟-重捕，旧逻辑每次都用新 id 重发 FIRE
+        // （实测第一次瓜岛 600s FIRE 命令 188 条）。但不能按 targetLostHoldS(45s) 那么久：
+        // 45s 会让舰在失跟窗口里对真正的新目标也不开火，实测萨沃岛 gun.hit 从 127 掉到 39。
+        if (!curStill && world.t - (mem.lastTargetT || -1e9) < this.targetChurnHoldS) continue;
       }
       const targetChanged = mem.targetTrackId !== best.e.tr.id || mem.ammo !== gate.ammo;
       // 夜间照明：目标在夜暗中未被识别时打照明弹（史实：日军在萨沃岛大量使用照明弹与探照灯）。
@@ -748,8 +912,18 @@ export class LocalAI {
       const mem = this.memFor(ship);
       if (mem.withdraw) continue;
       if (world.t < mem.evadeUntil) continue;               // 避雷机动优先
+      // B1：正在雷击突击/发射后脱离的舰由 torpedoAttack 指挥，战列线机动让位
+      if (mem.attacking && world.t < mem.attacking) continue;
+      // B1：被派去掩护脱离舰的僚舰由 escortWithdrawers() 指挥
+      if (mem.escortOf && world.t - (mem.escortT || -1e9) < 90) continue;
       // 屏护舰的航路由 screen() 安排（占位/前出），只有在无屏护对象时才自行机动
       if (hvuPresent && (ship.type === 'DD' || ship.type === 'CL')) continue;
+      // B1：发射鱼雷后的转向脱离（与射向垂直，横过后再拉开），由 fireTorpedoes 记下
+      if (mem.torpTurn && world.t < mem.torpTurn.until) {
+        if (this.setCourse(world, ship, mem.torpTurn.h, mem)) R.push('【雷击·脱离】' + ship.name + ' 发射后转向 ' + Math.round(mem.torpTurn.h) + '°');
+        this.setSpeed(world, ship, ship.data.speedMax_kn || 30, mem);
+        continue;
+      }
       const light = world.env && world.env.lightLevel !== undefined ? world.env.lightLevel : 1;
       const night = light < 0.15;
       // 目标
@@ -893,14 +1067,22 @@ export class LocalAI {
       const mem = this.memFor(dd);
       if (world.t < mem.evadeUntil) return;
       if (mem.attacking && world.t < mem.attacking) return;   // 正在雷击突击：由 torpedoAttack 指挥
+      if (mem.escortOf && world.t - (mem.escortT || -1e9) < 90) return; // 被派去掩护脱离舰
       if (world.t - mem.lastTorpT < 90) return;      // 刚完成雷击，正在脱离/再装填
       const off = stations[i % stations.length];
       const stationBearing = normDeg(axis + off);
       const rangeM = dd.type === 'CL' ? 4500 : (i % 2 === 0 ? 2800 : 3600);
       const goal = destPoint(flag.pos, rangeM, stationBearing);
       const d = dist2d(dd.pos, goal);
-      if (!mem.screenStation || Math.abs(normDeg180(mem.screenStation.bearingDeg - stationBearing)) > 10) {
+      // FORMATION 只是"阵位记录"（UI/指挥所/AAR 读），实际机动仍由下面的 SET_COURSE 执行。
+      // 威胁轴抖动 >10° 就重发会让 FORMATION 变成命令风暴（实测第一次瓜岛 600s 399 条）。
+      // 因此这里要求「阵位角变化 >25° 或距离变化 >500m」且每舰至少隔 90s 才重发一条。
+      const stationChanged = !mem.screenStation ||
+        Math.abs(normDeg180(mem.screenStation.bearingDeg - stationBearing)) > 25 ||
+        Math.abs(mem.screenStation.rangeM - rangeM) > 500;
+      if (stationChanged && world.t - (mem.lastFormationT || -1e9) > 90) {
         mem.screenStation = { bearingDeg: normDeg(stationBearing), rangeM };
+        mem.lastFormationT = world.t;
         this.order(world, { shipId: dd.id, kind: 'FORMATION', params: { station: mem.screenStation } });
       }
       if (d > 900) {
@@ -913,8 +1095,135 @@ export class LocalAI {
     });
   }
 
-  // ── 雷击突击 ──────────────────────────────────────────────────────────────
+  // ── 掩护脱离舰（B1）：就近僚舰前出到脱离舰「朝敌一侧」2.2km 屏护 ───────────
+  // 史实：重伤舰撤离时由就近驱逐舰/轻巡挡在追兵与伤舰之间（烟幕+屏护阵位）。
+  // 这里用 FORMATION 记录阵位（供指挥所/AAR 读取），实际操纵仍走 SET_COURSE/SET_SPEED；
+  // 每 escortHoldS 才重新评估，阵位变化 >12°/300m 才重发 FORMATION，避免命令风暴。
+  escortWithdrawers(world, mine, enemies, R) {
+    const D = this.dmgDoctrine;
+    const withdrawing = mine.filter((s) => this.memFor(s).withdraw);
+    if (!withdrawing.length) return;
+    const escorts = mine.filter((s) => (s.type === 'DD' || s.type === 'CL') && !this.memFor(s).withdraw);
+    if (!escorts.length) return;
+    const used = new Set();
+    for (const w of withdrawing) {
+      const wmem = this.memFor(w);
+      let esc = null;
+      // 已指派的僚舰仍然有效（没有沉没/没有退出/没被别人占用）就沿用，避免来回换
+      if (wmem.escortId) esc = escorts.find((e) => e.id === wmem.escortId && !used.has(e.id)) || null;
+      if (!esc) {
+        let bestD = 1e9;
+        for (const e of escorts) {
+          if (used.has(e.id)) continue;
+          const mem = this.memFor(e);
+          if (mem.withdraw || world.t < mem.evadeUntil) continue;
+          const d = dist2d(e.pos, w.pos);
+          if (d < bestD) { bestD = d; esc = e; }
+        }
+        if (esc) { wmem.escortId = esc.id; wmem.escortT = world.t; }
+      }
+      if (!esc) continue;
+      used.add(esc.id);
+      const emem = this.memFor(esc);
+      emem.escortOf = w.id; emem.escortT = world.t;
+      const threatBrg = this.threatBearing(world, w);
+      if (threatBrg === null) continue;
+      const stationBearing = normDeg(threatBrg);          // 站在伤舰与敌人之间
+      const rangeM = D.escortRangeM;
+      const goal = destPoint(w.pos, rangeM, stationBearing);
+      const changed = !emem.screenStation || emem.screenFor !== w.id ||
+        Math.abs(normDeg180(emem.screenStation.bearingDeg - stationBearing)) > 12 ||
+        Math.abs(emem.screenStation.rangeM - rangeM) > 300;
+      if (changed && world.t - (emem.lastEscortT || -1e9) > D.escortHoldS) {
+        emem.screenStation = { bearingDeg: stationBearing, rangeM };
+        emem.screenFor = w.id; emem.lastEscortT = world.t;
+        this.order(world, { shipId: esc.id, kind: 'FORMATION', params: { station: emem.screenStation } });
+        if (R) R.push('【掩护】' + esc.name + ' → 脱离舰 ' + w.name + ' 的朝敌一侧 ' + (rangeM / 1000).toFixed(1) + 'km 屏护阵位');
+      }
+      if (dist2d(esc.pos, goal) > 700 && world.t - (emem.lastEscortCourseT || -1e9) > 45) {
+        emem.lastEscortCourseT = world.t;
+        const h = bearing2d(esc.pos, goal);
+        if (this.setCourse(world, esc, h, emem)) R.push('【掩护】' + esc.name + ' 前出掩护 ' + w.name + ' 航向' + Math.round(h) + '°');
+        this.setSpeed(world, esc, (esc.data.speedMax_kn || 30) * 0.95, emem);
+      }
+    }
+  }
+
+  // ── 雷击条令（B1）：协同扇面齐射 + 突击占位 ────────────────────────────────
+  // 单舰「有窗口就放雷」既浪费 4~6 管九三式，也把战列线航向搅乱。这里按 1942 年水雷战队
+  // 的做法组织攻击：
+  //   1) 同一目标由 ≥2 舰编组，各舰按目标航向/航速解提前角（solveIntercept）；
+  //   2) 每舰扇面宽度由航迹误差换算后按邻舰夹角裁开，保证扇面互不重叠（pickFanGroup）；
+  //   3) 同一目标两批齐射间隔 ≥ groupWindowS；单舰对同一目标只打一次（targetRepeatS）；
+  //   4) 进不了窗口的舰按「目标舷侧射击位」突击占位（限流、限数量），而不是原地等目标靠近。
   torpedoAttack(world, mine, enemies, R) {
+    if (!this.doctrineOn) return this.torpedoAttackLegacy(world, mine, enemies, R);
+    if (!enemies.length) return;
+    const D = this.torpDoctrine;
+    const night = this.isNight(world);
+    const ctx = { night, winMax: night ? D.nightRangeM : D.dayRangeM, tofMax: night ? D.nightTofS : D.dayTofS };
+    // 1) 候选射手：未退出、未避雷、有装填、冷却已到
+    const shooters = [];
+    for (const s of mine) {
+      const mem = this.memFor(s);
+      if (mem.withdraw || world.t < mem.evadeUntil) continue;
+      if (!TORPEDO_TYPES_ALLOWED[s.type]) continue;
+      const mounts = (s.torpedoMounts || []).filter((m) => !m.destroyed && m.health > 0.2 && m.tubesLoaded > 0);
+      if (!mounts.length) continue;
+      if (world.t - mem.lastTorpT < D.reloadS) continue;
+      shooters.push({ ship: s, mem, mount: mounts[0], spec: torpedoSpecFor(s, mounts[0]) });
+    }
+    if (!shooters.length) return;
+    // 2) 解算所有「射手→目标」射位（提前角/航程/舷角/命中窗口/友舰安全走廊）
+    const shots = [];
+    for (const sh of shooters) for (const e of enemies) {
+      const c = this.torpShotCandidate(world, sh, e, ctx);
+      if (c) shots.push(c);
+    }
+    const salvoed = new Set();
+    if (shots.length) {
+      // 3) 按目标聚合成组，优先价值高、命中窗口好的目标
+      const byTarget = new Map();
+      for (const c of shots) {
+        if (!byTarget.has(c.targetId)) byTarget.set(c.targetId, { targetId: c.targetId, target: c.target, shots: [] });
+        byTarget.get(c.targetId).shots.push(c);
+      }
+      const groups = Array.from(byTarget.values()).sort((a, b) => this.torpGroupScore(b) - this.torpGroupScore(a));
+      let salvos = 0;
+      for (const g of groups) {
+        if (salvos >= 2) break;                                       // 一个决策周期最多两批齐射
+        if (world.t - ((this.fleet.torpGroupAt || {})[g.targetId] || -1e9) < D.groupWindowS) continue;
+        const pool = g.shots.filter((c) => !salvoed.has(c.ship.id) &&
+          world.t - ((c.mem.torpTargetAt || {})[c.targetId] || -1e9) > D.targetRepeatS);
+        const chosen = this.pickFanGroup(pool, D);
+        if (chosen.length < D.minGroupSize) continue;                  // 编不成组 → 交给单舰/占位
+        let fired = 0;
+        for (const c of chosen) if (this.fireTorpedoes(world, c, R, { group: true, planned: chosen })) { salvoed.add(c.ship.id); fired++; }
+        if (fired) { this.fleet.torpGroupAt = this.fleet.torpGroupAt || {}; this.fleet.torpGroupAt[g.targetId] = world.t; salvos++; }
+      }
+      // 4) 单舰近距补射（编不成组 / 剩余射手）：舷角与距离门限更严
+      for (const c of shots) {
+        if (salvoed.has(c.ship.id)) continue;
+        if (c.r > D.singleMaxRangeM) continue;
+        if (c.aspect < D.singleAspectMinDeg || c.aspect > D.singleAspectMaxDeg) continue;
+        if (world.t - ((this.fleet.torpGroupAt || {})[c.targetId] || -1e9) < D.groupWindowS) continue;
+        if (world.t - ((c.mem.torpTargetAt || {})[c.targetId] || -1e9) <= D.targetRepeatS) continue;
+        if (this.fireTorpedoes(world, c, R, { group: false })) {
+          this.fleet.torpGroupAt = this.fleet.torpGroupAt || {};
+          this.fleet.torpGroupAt[c.targetId] = world.t;
+          salvoed.add(c.ship.id);
+        }
+      }
+    }
+    // 5) 剩余射手：按目标舷侧射击位突击占位（限流，避免每 8s 一条航向命令）
+    this.torpedoRunOrders(world, mine, enemies, shooters.filter((sh) => !salvoed.has(sh.ship.id)), ctx, R);
+  }
+
+  // ── 雷击（B1 之前的旧条令；doctrine.enabled=false 时启用，供 t15 做同种子对照）──
+  // 历史行为：单舰各自找窗口（夜 1.2~6.5km、日 2~8.5km，舷角 60~120°），同一目标 30s 内
+  // 只有一舰能放雷。没有编组、没有扇面去重、也没有"单舰不重复打同一目标"的抑制。
+  // ── 雷击突击 ──────────────────────────────────────────────────────────────
+  torpedoAttackLegacy(world, mine, enemies, R) {
     if (!enemies.length) return;
     for (const dd of mine) {
       const mem = this.memFor(dd);
@@ -1000,6 +1309,170 @@ export class LocalAI {
     }
   }
 
+  isNight(world) {
+    const e = (world && world.env) || {};
+    if (e.sunAltDeg !== undefined && e.sunAltDeg !== null) return e.sunAltDeg < -6;
+    return (e.lightLevel !== undefined ? e.lightLevel : 1) < 0.10;
+  }
+
+  // 单个射位是否成立：射程/舷角/命中窗口/档位/友舰走廊
+  torpShotCandidate(world, sh, e, ctx) {
+    const D = this.torpDoctrine;
+    const ship = sh.ship, spec = sh.spec, tr = e.tr || {};
+    if (!tr.pos) return null;
+    const r = dist2d(ship.pos, tr.pos);
+    if (r < D.minRangeM || r > ctx.winMax) return null;
+    const eSpeedKn = tr.speedKn !== undefined ? tr.speedKn : 15;
+    const eCourse = tr.courseDeg !== undefined ? tr.courseDeg : 0;
+    // 舷角：目标航向 vs「目标→本舰」方位；90° 时鱼雷航向与目标航向接近垂直，命中投影最大
+    const aspect = aspectAngle(eCourse, bearing2d(tr.pos, ship.pos));
+    if (aspect < D.aspectMinDeg || aspect > D.aspectMaxDeg) return null;
+    // 提前角解算：瞄准目标未来位置（舰速 + 鱼雷速求交）
+    const solFast = solveIntercept(ship.pos.x, ship.pos.y, tr.pos.x, tr.pos.y, eCourse, kn2mps(eSpeedKn), kn2mps(spec.speedsKn[0]));
+    if (solFast.tofS > ctx.tofMax) return null;                       // 命中窗口：目标有充分规避时间就不打
+    if (solFast.runM > Math.max.apply(null, spec.rangesM) * 0.98) return null;
+    // 档位：选能覆盖实际拦截点航程的最快档（目标逃逸时拦截点更远，必须用拦截三角算）
+    let speedIdx = -1;
+    for (let i = 0; i < spec.speedsKn.length; i++) {
+      const s2 = solveIntercept(ship.pos.x, ship.pos.y, tr.pos.x, tr.pos.y, eCourse, kn2mps(eSpeedKn), kn2mps(spec.speedsKn[i]));
+      if (s2.runM <= spec.rangesM[i] * 0.98) { speedIdx = i; break; }
+    }
+    if (speedIdx < 0) return null;
+    // 不把鱼雷浪费在已经明显失能的目标上（航速塌到 4 节以下说明已被打残，留着打新目标）
+    if (eSpeedKn > 0 && eSpeedKn < 4 && !ARMORED_TYPES[e.classifiedAs] && e.classifiedAs !== 'CV') return null;
+    // 扇面宽度：目标位置横向不确定度（航迹 errM）换算成角度 + 2° 余量
+    const errM = tr.errM !== undefined ? tr.errM : 400;
+    const spreadBase = clamp(rad2deg(2.2 * Math.atan2(errM + 150, Math.max(1000, solFast.runM))) + 2, D.fanMinDeg, D.fanMaxDeg);
+    // 友舰安全走廊：射向 ±(扇面/2+2°)、航程+1200m 内不得有队友
+    if (!this.corridorClear(world, ship, e, solFast.trackCourseDeg, spreadBase, solFast.runM)) return null;
+    const score = this.torpShotScore(e, r, aspect, solFast.tofS, spec, speedIdx);
+    return { ship, mem: sh.mem, mount: sh.mount, spec, target: e, targetId: tr.id,
+      r, aspect, tofS: solFast.tofS, courseDeg: normDeg(solFast.trackCourseDeg), speedIdx, spreadBase, score };
+  }
+
+  torpShotScore(e, r, aspect, tofS, spec, speedIdx) {
+    let s = this.trackValue(e);
+    if (e.tr.id === this.fleet.vanTrackId) s *= 1.30;                        // 优先战列线前导舰
+    if (ARMORED_TYPES[e.classifiedAs] || e.classifiedAs === 'CV') s *= 1.20; // 主力舰价值
+    s *= 0.70 + 0.60 * Math.sin(clamp(aspect, 0, 180) * Math.PI / 180);      // 舷角越接近 90° 命中投影越大
+    if (e.tr.id === this.fleet.focusTrackId) s *= 1.10;                      // 与火力焦点一致
+    s /= Math.max(1, tofS / 150);                                            // 飞行时间越短越可靠
+    if (spec.speedsKn.length > 1 && spec.speedsKn[speedIdx] === spec.speedsKn[0]) s *= 1.0;
+    return s;
+  }
+
+  torpGroupScore(g) {
+    const top = g.shots.slice().sort((a, b) => b.score - a.score).slice(0, this.torpDoctrine.maxPerGroup);
+    return top.reduce((a, c) => a + c.score, 0) + top.length * 2;             // 组内舰数也加分（协同优先）
+  }
+
+  // 扇面编组：按分数依次纳入，每舰扇面裁到「与已纳入邻舰的雷道夹角 - 间隙」之内，
+  // 保证任意两舰扇面不重叠；夹角太小的舰本轮不参加（换目标/等下一批）。
+  pickFanGroup(pool, D) {
+    const sorted = pool.slice().sort((a, b) => b.score - a.score);
+    const chosen = [];
+    for (const c of sorted) {
+      let cap = c.spreadBase;
+      let ok = true;
+      for (const p of chosen) {
+        const sep = Math.abs(normDeg180(c.courseDeg - p.courseDeg));
+        const room = 2 * (sep - D.fanGapDeg) - p.spreadDeg;                   // 解 spread_c ≤ 2(sep-gap) - spread_p
+        if (room < cap) cap = room;
+        if (room < D.fanMinDeg) { ok = false; break; }
+      }
+      if (!ok) continue;
+      chosen.push(Object.assign({}, c, { spreadDeg: clamp(cap, D.fanMinDeg, D.fanMaxDeg) }));
+      if (chosen.length >= D.maxPerGroup) break;
+    }
+    return chosen;
+  }
+
+  // 执行发射：管数按目标价值、保留管次；发射后转向脱离并近距施烟
+  fireTorpedoes(world, c, R, opts) {
+    const D = this.torpDoctrine;
+    const ship = c.ship, mem = c.mem, mount = c.mount, target = c.target;
+    if (!mount || mount.destroyed || mount.tubesLoaded <= 0) return false;
+    const loaded = mount.tubesLoaded;
+    const hvu = ARMORED_TYPES[target.classifiedAs] || target.classifiedAs === 'CV';
+    let tubes = hvu ? Math.min(loaded, 6) : Math.min(loaded, 4);
+    tubes = Math.max(1, Math.min(tubes, loaded - (loaded > 4 ? D.tubesReserve : 0)));
+    if (opts && opts.group && tubes < 2) return false;                         // 齐射至少要 2 管
+    const spread = clamp(c.spreadDeg !== undefined ? c.spreadDeg : c.spreadBase, D.fanMinDeg, D.fanMaxDeg);
+    const cmd = this.order(world, { shipId: ship.id, kind: 'LAUNCH_TORPEDO',
+      params: { trackId: target.tr.id, spreadDeg: +spread.toFixed(1), tubes, speedIdx: c.speedIdx, bearingDeg: Math.round(c.courseDeg) } });
+    if (!cmd) return false;
+    mem.torpTargetAt = mem.torpTargetAt || {};
+    mem.torpTargetAt[target.tr.id] = world.t;
+    mem.lastTorpT = world.t; mem.torpedoTargetId = target.tr.id;
+    mem.attacking = world.t + 90;                                              // 发射后 90s 脱离/再装填（屏护让位）
+    const mode = (opts && opts.group) ? '协同齐射' : '单舰雷击';
+    R.push('【雷击·' + mode + '】' + ship.name + '→' + this.label(target) + ' ' + (c.r / 1000).toFixed(1) + 'km 舷角' +
+      Math.round(c.aspect) + '° 提前角' + this.leadAngleOf(c) + '° 发射' + tubes + '雷 ' + c.spec.speedsKn[c.speedIdx] + '节 扇面' +
+      spread.toFixed(1) + '° 预计命中' + Math.round(c.tofS) + 's（' + c.spec.wakeType + '航迹）');
+    // 发射后转向脱离：与射向垂直（横过后再拉开），近距才施烟掩护（远距没被看清，别自蔽）
+    const trackCourse = bearing2d(ship.pos, target.tr.pos);
+    const away = normDeg(trackCourse + 180 + (Math.abs(normDeg180(trackCourse + 90 - ship.heading)) < Math.abs(normDeg180(trackCourse - 90 - ship.heading)) ? 75 : -75));
+    mem.torpTurn = { h: away, until: world.t + 60 };                            // maneuver() 在下一个周期执行转向
+    if (c.r < 8000) this.smoke(world, ship, true);
+    return true;
+  }
+  leadAngleOf(c) {
+    const tr = c.target.tr || {};
+    const los = bearing2d(c.ship.pos, tr.pos || c.ship.pos);
+    return Math.round(normDeg180(c.courseDeg - los));
+  }
+
+  // 突击占位：尚未进窗口的雷击舰，抢占「目标舷侧射击位」——射向与目标航向接近垂直，
+  // 使舷角进入 45~135° 窗口。限 3 舰、每舰每 attackRunRefreshS 只重算一次航向。
+  torpedoRunOrders(world, mine, enemies, shooters, ctx, R) {
+    const D = this.torpDoctrine;
+    let n = 0;
+    for (const sh of shooters) {
+      if (n >= D.attackRunMaxShips) break;
+      const ship = sh.ship, mem = sh.mem;
+      if (mem.withdraw || world.t < mem.evadeUntil) continue;
+      if (world.t - (mem.torpRunT || -1e9) < D.attackRunRefreshS) continue;
+      let target = null, best = -1;
+      for (const e of enemies) {
+        const r = dist2d(ship.pos, e.tr.pos);
+        if (r < D.minRangeM || r > D.attackRunRangeM) continue;
+        const v = this.trackValue(e) / Math.max(1500, r);
+        if (v > best) { best = v; target = e; }
+      }
+      if (!target) continue;
+      const h = this.torpedoRunHeading(ship, target, sh.spec);
+      if (h === null) continue;
+      const ok = this.setCourse(world, ship, h, mem, true);
+      this.setSpeed(world, ship, ship.data.speedMax_kn || 30, mem);
+      if (ok) {
+        mem.torpRunT = world.t; mem.attacking = world.t + D.attackRunRefreshS;
+        R.push('【雷击·占位】' + ship.name + ' 突击占位 航向' + Math.round(h) + '→' + this.label(target) +
+          '（' + (dist2d(ship.pos, target.tr.pos) / 1000).toFixed(1) + 'km，抢占目标舷侧雷击位）');
+        n++;
+      }
+    }
+  }
+  // 目标舷侧射击位：目标未来位置 + 正横 2.6km + 航向前方 1.2km（迭代 3 次算目标运动）
+  torpedoRunHeading(ship, target, spec) {
+    const tr = target.tr || {};
+    if (tr.pos === undefined) return null;
+    if (tr.courseDeg === undefined || tr.speedKn === undefined || tr.speedKn <= 0) {
+      return this.interceptHeading(ship, tr, kn2mps(spec.speedsKn[0]) * 0.92);
+    }
+    const course = normDeg(tr.courseDeg);
+    const rel = bearing2d(tr.pos, ship.pos);
+    const side = Math.abs(normDeg180(rel - normDeg(course + 90))) <= Math.abs(normDeg180(rel - normDeg(course - 90))) ? 1 : -1;
+    const beamDeg = normDeg(course + side * 90);
+    const beamM = 2600, aheadM = 1200;
+    const ownV = kn2mps(Math.max(18, (ship.data.speedMax_kn || 30) * 0.95));
+    let aim = null;
+    for (let i = 0; i < 3; i++) {
+      const base = i === 0 ? tr.pos : destPoint(tr.pos, kn2mps(tr.speedKn) * (dist2d(ship.pos, aim) / ownV), course);
+      aim = destPoint(destPoint(base, aheadM, course), beamM, beamDeg);
+    }
+    return bearing2d(ship.pos, aim);
+  }
+
   corridorClear(world, dd, target, courseDeg, spread, runM) {
     const half = clamp(spread / 2 + 2, 2, 12) * Math.PI / 180;
     for (const f of world.shipsOf(this.side)) {
@@ -1030,16 +1503,25 @@ export class LocalAI {
   // ── 撤退 ──────────────────────────────────────────────────────────────────
   retirementAxis(world) { return this.fleet.threatAxisDeg !== null ? normDeg(this.fleet.threatAxisDeg + 180) : null; }
   retreatHeading(world, ship) {
-    let h = this.retirementAxis(world);
-    if (h === null) {
-      const sc = world.scenario || {};
-      const start = (sc.ships || []).find((s) => s.id === ship.id) || {};
-      if (start.x !== undefined && (start.x !== 0 || start.y !== 0)) h = bearing2d(ship.pos, { x: start.x, y: start.y });
-      else h = normDeg(ship.heading + 90);
+    const away = this.retirementAxis(world);   // 威胁轴反向 = 远离敌人
+    const sc = world.scenario || {};
+    const start = (sc.ships || []).find((s) => s.id === ship.id) || {};
+    let home = null;
+    if (start.x !== undefined && (start.x !== 0 || start.y !== 0)) home = bearing2d(ship.pos, { x: start.x, y: start.y });
+    if (away === null) return home !== null ? home : normDeg(ship.heading + 90);
+    // 「向本方远离敌方向」：本方就在撤退方向上（±70°）时回自己的航道
+    if (home !== null && Math.abs(normDeg180(home - away)) < 70) return home;
+    const mates = world.afloatOf(this.side).filter((s) => s.id !== ship.id && !this.memFor(s).withdraw);
+    if (mates.length) {
+      let cx = 0, cy = 0;
+      for (const m of mates) { cx += m.pos.x; cy += m.pos.y; }
+      const toMates = bearing2d(ship.pos, { x: cx / mates.length, y: cy / mates.length });
+      // 朝本方主力靠拢，但绝不朝敌（与"远离威胁轴"夹角 <=75°）
+      if (Math.abs(normDeg180(toMates - away)) < 75) return toMates;
     }
-    return h;
+    return away;
   }
-  // 单舰脱离操舵：背离威胁轴、全速、烟幕掩护
+  // 单舰脱离操舵：背离最近/最大威胁、按剩余航速上限全速、烟幕掩护
   retreatShip(world, ship, mem, R) {
     const foes = world.afloatOf(world.opposite(this.side));
     if (!foes.length) return;
@@ -1051,11 +1533,22 @@ export class LocalAI {
     }
     if (!threat) return;
     const away = bearing2d(threat.pos, ship.pos);
-    if (this.setCourse(world, ship, away, mem, true)) R.push('【脱离】' + ship.name + ' 背离威胁 航向' + Math.round(away) + '°');
-    this.setSpeed(world, ship, ship.data.speedMax_kn || 30, mem);
-    if (!(ship.flags && ship.flags.smokeOn) && world.t - (mem.lastRetreatSmoke || -1e9) > 45) {
-      this.order(world, { shipId: ship.id, kind: 'SMOKE', params: { on: true } });
-      mem.lastRetreatSmoke = world.t;
+    // 脱离是"持续状态"：航向/航速用更长的节流（60s / 90s），不要按交战时的 25s 重发。
+    // 撤离中的舰每 25s 一条航向命令会把命令数抬回风暴量级（实测萨沃岛 B1 474 条里有
+    // 相当一部分是撤退舰在刷航向/航速）。
+    if (world.t - (mem.lastRetreatCourseT || -1e9) > 60) {
+      mem.lastRetreatCourseT = world.t;
+      if (this.setCourse(world, ship, away, mem, true)) R.push('【脱离】' + ship.name + ' 背离威胁 航向' + Math.round(away) + '°');
+    }
+    if (world.t - (mem.lastRetreatSpeedT || -1e9) > 90) {
+      mem.lastRetreatSpeedT = world.t;
+      const kn = Math.floor(Math.min(ship.data.speedMax_kn || 30, ship.speedCapKn || (ship.data.speedMax_kn || 30)));
+      this.setSpeed(world, ship, kn, mem);
+    }
+    // 烟幕要持续覆盖：烟团在漂移/消散，每 smokeOnS 重新发一次（而不是只在第一次）
+    if (world.t - (mem.lastRetreatSmoke || -1e9) > this.dmgDoctrine.smokeOnS) {
+      if (this.smoke(world, ship, true)) { mem.lastRetreatSmoke = world.t; if (R) R.push('【烟幕】' + ship.name + ' 持续发烟掩护脱离'); }
+      else mem.lastRetreatSmoke = world.t;
     }
   }
 
@@ -1073,24 +1566,36 @@ export class LocalAI {
     if (R) R.push('【脱离】全队背敌 ' + Math.round(this.retirementAxis(world) || 0) + '° 撤退，烟幕掩护');
   }
 
-  // ── 损管优先级 ────────────────────────────────────────────────────────────
+  // ── 损管优先级（B1）──────────────────────────────────────────────────────
+  // 按「主要损伤类型」排序，而不是"只要进过水就永远 flooding"：
+  //   弹药库受威胁（殉爆风险）> 大量进水/横倾（沉没风险）> 火灾（会蔓延到弹药库）
+  //   > 机动性（能跑才有一切）。
+  // 去重由 react() 负责：同一 mode 不重发；被外部/玩家改掉也至少隔 smokeOnS 再接管。
   dcMode(ship, mem, tNow) {
     const comps = ship.compartments || [];
+    // 1) 弹药库：起火 / 被击穿且尚未注水 → 注水保命（最高优先，史实红线）
     const magThreat = comps.some((c) => c.isMagazine && (c.fire > 0.03 || (c.breached && c.flood_m3 < c.volume_m3 * 0.15)));
     if (magThreat) return 'magazine';
-    // 进水速率（m^3/s）是否超过排水泵能力：超过就全力堵漏/排水
+    // 2) 进水：进水速率是否超过排水泵能力 / 已到沉没风险量级 / 大横倾
+    let rate = 0;
     if (mem && mem.prevFlood !== undefined && mem.prevFloodT !== undefined) {
       const dtEff = Math.max(0.5, tNow - mem.prevFloodT);
-      const rate = (ship.floodedM3 - mem.prevFlood) / dtEff;
+      rate = (ship.floodedM3 - mem.prevFlood) / dtEff;
       mem.prevFlood = ship.floodedM3; mem.prevFloodT = tNow;
-      if (rate > ship.pumpCapacity / 60 * 1.15) return 'flooding';
     } else if (mem) { mem.prevFlood = ship.floodedM3; mem.prevFloodT = tNow; }
-    const fires = comps.filter((c) => c.fire > 0.05).length;
-    if (fires >= 1 && !ship.compartments.some((c) => c.breached)) return 'fire';
-    if (Math.abs(ship.list || 0) > 6 || ship.floodedM3 > 0) return 'flooding';
-    if (fires > 0) return 'fire';
-    const engine = (ship.subsystems || []).filter((s) => (s.kind === 'BOILER' || s.kind === 'SHAFT' || s.kind === 'STEERING_GEAR') && s.health < 0.5).length;
+    const floodFrac = ship.floodedM3 / Math.max(1, ship.reserveBuoyancyM3);
+    const pumpRate = (ship.pumpCapacity || 0) / 60;
+    if (floodFrac > 0.10 || Math.abs(ship.list || 0) > 8 || (pumpRate > 0 && rate > pumpRate * 1.15)) return 'flooding';
+    // 3) 火灾：多舱/大火势（火不扑会烧到弹药库与动力舱）
+    let fireSum = 0, fireMax = 0;
+    for (const c of comps) if (c.fire > 0.05) { fireSum += c.fire; if (c.fire > fireMax) fireMax = c.fire; }
+    if (fireSum >= 0.6 || fireMax >= 0.35) return 'fire';
+    // 4) 机动性：动力/轴系/舵机受损（掉速即失去阵位与规避能力）
+    const engine = (ship.subsystems || []).filter((s) => (s.kind === 'BOILER' || s.kind === 'SHAFT' || s.kind === 'STEERING_GEAR') && !s.destroyed && (s.health === undefined || s.health < 0.5)).length;
     if (engine) return 'mobility';
+    // 5) 一般进水/小火灾：仍按主要问题排（少量进水优先堵漏，小火灾其次）
+    if (ship.floodedM3 > 0.5 || Math.abs(ship.list || 0) > 3) return 'flooding';
+    if (fireSum > 0) return 'fire';
     return null;
   }
 }
