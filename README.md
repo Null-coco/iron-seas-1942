@@ -118,7 +118,7 @@ naval/
 
 ### 3.2 界面主题与设计 token（v5）
 
-界面有 **四套主题**：顶栏右侧四段按钮一键切换（当前项高亮），也可以 `Shift+T` 循环；选择存在 `localStorage.ironseas_theme`。
+界面有 **五套主题**：顶栏右侧五段按钮一键切换（当前项高亮），也可以 `Shift+T` 循环；选择存在 `localStorage.ironseas_theme`。
 
 | 主题 | `data-theme` | 语言 |
 | --- | --- | --- |
@@ -126,8 +126,10 @@ naval/
 | 海图 | `chart` | 方案 A：图廓刻度、直角、宋体标题、硬墨线、等深线虚线 |
 | 印刷 | `riso` | 方案 B：深褐 + 朱红双色油墨，粗墨线、零圆角、陆地朱红斜线 |
 | 夜间 | `dark` | 原深海战术台 |
+| 高对比 | `contrast` | 无障碍：纯黑底 + 纯白前景 + 高亮强调，焦点环加粗 |
 
-- **唯一事实来源**：`index.html` 里 `:root[data-theme="paper"|"chart"|"riso"|"dark"]` 四组 CSS 变量。改配色只改这一处。
+- **可访问性**：rail / 顶栏 / 页签 / 动作条均带 aria 状态（aria-selected / aria-pressed / aria-expanded 由类同步），支持键盘焦点环与 `prefers-reduced-motion`，并有 ≤1024px / ≤820px 两条触控断点（命中区 ≥44px）。
+- **唯一事实来源**：`index.html` 里 `:root[data-theme="paper"|"chart"|"riso"|"dark"|"contrast"]` 五组 CSS 变量。改配色只改这一处。
 - **Canvas 跟随主题**：`src/ui/theme.js` 的 `chartPalette()` 把同一批 `--c-*` 变量读给 Canvas（按主题缓存，切换自动失效），`alpha(color, a)` 负责把实色转成带透明度的 `rgba()`。
   护栏：`grep -nE '#[0-9a-fA-F]{3,8}|rgba?\(' src/render/chart.js` 应当为空——这样"换皮"不需要动任何绘制代码。
 - **版式尺度**：6 档字号 `--fs-1…--fs-6`、6 档圆角 `--r-lg/--r/--r-2/--r-s/--r-xs/--r-pill`，组件不再手写字号与圆角。

@@ -164,6 +164,8 @@ export function bootApp() {
       if (r === 'burn') return { cls: 'hit', group: 'damage', toast: (ev.name || ev.ship) + ' 弹药库爆燃！' };
       return { cls: 'fire', group: 'damage' };
     }
+    if (/^gun\.friendlyfire$/.test(t)) return { cls: 'sink', group: 'combat', toast: '误击友军：' + (ev.name || ev.ship) + '！', gold: true };
+    if (/^scenario\.message$/.test(t)) return { cls: 'sys', group: 'sys', toast: ev.text || '剧本事件' };
     if (/^dam\./.test(t)) return { cls: 'fire', group: 'damage' };
     if (/^gun\.(hit|penetration|bounce|nearmiss|straddle)$/.test(t)) return { cls: 'hit', group: 'combat' };
     if (/^torp\./.test(t)) return { cls: 'hit', group: 'combat' };
@@ -317,6 +319,9 @@ export function bootApp() {
     if (t === 'ai.chat') return tag('ai', '通话') + 'AI[' + n(ev.side) + ']：' + n(String(ev.text || '').slice(0, 90));
     if (t === 'ai.fallback') return tag('ai', '掉线') + 'AI 掉线回落：' + n(ev.side) + ' → 本地规则（' + n(ev.reason) + '）';
     if (t === 'victory.achieved') return tag('sink', '交战结束') + n(ev.text || ev.winner);
+    if (t === 'gun.friendlyfire') return tag('sink', '误击') + n(ev.name || ev.ship) + ' 被本方 ' + n(ev.killerName || '友舰') + ' 击中（' + n(ev.reason || '识别错误') + '）';
+    if (t === 'scenario.message') return tag('sys', '剧本') + n(ev.text);
+    if (t === 'scenario.trigger') return tag('sys', '触发器') + n(ev.id) + (ev.kind && ev.kind !== 'NONE' ? '（' + n(ev.kind) + '）' : '');
     return null;
   }
 

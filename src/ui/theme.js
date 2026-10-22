@@ -11,12 +11,13 @@
 export const THEME_ATTR = "data-theme";
 export const THEME_KEY = "ironseas_theme";
 export const DEFAULT_THEME = "paper";
-// 四套主题：纸面（默认）/ 海图（方案 A：图廓 + 宋体 + 直角）/ 印刷（方案 B：双色油墨）/ 夜间
-export const THEMES = ["paper", "chart", "riso", "dark"];
-export const THEME_LABEL = { paper: "纸面", chart: "海图", riso: "印刷", dark: "夜间" };
+// 五套主题：纸面（默认）/ 海图（方案 A：图廓 + 宋体 + 直角）/ 印刷（方案 B：双色油墨）/ 夜间 / 高对比（无障碍）
+export const THEMES = ["paper", "chart", "riso", "dark", "contrast"];
+export const THEME_LABEL = { paper: "纸面", chart: "海图", riso: "印刷", dark: "夜间", contrast: "高对比" };
 
 // key -> { var: CSS 自定义属性名, paper: 缺省值（CSS 未定义/未加载时的兜底） }
-// 所有 key 都必须同时存在于 index.html 的 paper 与 dark 主题块里，否则夜间主题会退回纸面色。
+// 所有 key 都必须同时存在于 index.html 每一套主题块（paper/chart/riso/dark/contrast）里，
+// 否则缺变量的主题会退回 paper 兜底色。
 export const CHART_TOKENS = {
   // —— 海面 / 环境 ——
   seaTop:      { var: "--c-sea-top",      paper: "#f6efdd" },
@@ -185,7 +186,7 @@ export function toggleTheme() {
   return setTheme(getTheme() === "paper" ? "dark" : "paper");
 }
 
-/** Shift+T：纸面 → 海图 → 印刷 → 夜间 循环。 */
+/** Shift+T：纸面 → 海图 → 印刷 → 夜间 → 高对比 循环。 */
 export function cycleTheme() {
   const i = THEMES.indexOf(getTheme());
   return setTheme(THEMES[(i + 1) % THEMES.length]);

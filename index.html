@@ -216,6 +216,53 @@
   --c-hatch:#8fb4d8; --c-hatch-a:0; --c-frame-a:0; --c-depth-dash:0; --c-label-font:mono;
 }
 
+/* ---------- 高对比（无障碍主题） ----------
+   纯黑底 + 纯白/高亮前景 + 实线描边；不依赖低透明度分隔线表达层级。
+   --c-* 变量集合必须与 paper/chart/riso/dark 完全一致（theme.js 的 CHART_TOKENS 逐项读取），
+   --fs-* / --r-* 也显式声明，保证换到本主题时字号与圆角不依赖其它主题的继承。 */
+:root[data-theme="contrast"]{
+  --bg:#000000; --surface:#000000; --surface-2:#0a0a0a; --surface-3:#141414; --surface-4:#1e1e1e;
+  --chart-bg:#000000;
+  --line:rgba(255,255,255,.55); --line-2:rgba(255,255,255,.78); --line-3:#ffffff;
+  --text:#ffffff; --text-2:#f2f2f2; --text-3:#d8d8d8;
+  --accent:#ffd400; --accent-2:#ffe45c; --accent-soft:rgba(255,212,0,.22); --on-accent:#000000;
+  --good:#00e676; --warn:#ffd400; --bad:#ff5c5c; --info:#4dd0ff;
+  --allied:#4dd0ff; --axis:#ff7b7b; --violet:#d0a4ff;
+  --red:#ff5c5c; --brass:#ffd400; --brass-2:#ffe45c; --amber:#ffd400;
+  --glass:rgba(0,0,0,.94); --glass-2:rgba(0,0,0,.98);
+  --scrim:rgba(0,0,0,.86); --halo:rgba(0,0,0,.95);
+  --err-bg:#000000; --err-fg:#ffb0b0; --err-line:#ff5c5c;
+  --shadow:0 0 0 2px rgba(255,255,255,.45); --shadow-sm:0 0 0 1px rgba(255,255,255,.45);
+  --fs-1:12px; --fs-2:13px; --fs-3:14px; --fs-4:15px; --fs-5:18px; --fs-6:23px;
+  --r-lg:0px; --r:0px; --r-2:0px; --r-s:0px; --r-xs:0px; --r-pill:0px;
+  --pill-ok-bg:rgba(0,230,118,.24);      --pill-ok-fg:#7dffb0;
+  --pill-warn-bg:rgba(255,212,0,.24);    --pill-warn-fg:#ffe45c;
+  --pill-bad-bg:rgba(255,92,92,.26);     --pill-bad-fg:#ffb0b0;
+  --pill-info-bg:rgba(77,208,255,.24);   --pill-info-fg:#b3e8ff;
+  --pill-gold-bg:rgba(255,212,0,.24);    --pill-gold-fg:#ffe45c;
+  --pill-violet-bg:rgba(208,164,255,.24); --pill-violet-fg:#e6d2ff;
+  --ev-hit:#ffb0b0; --ev-fire:#ffe45c; --ev-sink:#ffb0b0; --ev-det:#b3e8ff;
+  --ev-ai:#e6d2ff; --ev-cmd:#ffffff; --ev-sys:#d8d8d8;
+  --paper-fiber:transparent;
+  --c-sea-top:#000000; --c-sea-mid:#000000; --c-sea-bot:#000000;
+  --c-horizon:#ffffff; --c-swell:#9a9a9a; --c-night-wash:#000000; --c-glare:#ffffff;
+  --c-vignette:#000000;
+  --c-land-a:#1c1c1c; --c-land-b:#2c2c2c; --c-land-line:#ffffff; --c-shore:#ffd400;
+  --c-depth-a-scale:.6;
+  --c-depth-shallow:#4a4a4a; --c-depth-mid:#3a3a3a; --c-depth-deep:#2a2a2a;
+  --c-depth:#ffd400; --c-depth-strong:#ffffff; --c-depth-text:#d8d8d8;
+  --c-grid:#ffffff; --c-grid-strong:#ffffff; --c-grid-a:.14; --c-grid-a-strong:.32; --c-grid-text:#d8d8d8;
+  --c-ink:#ffffff; --c-ink-dim:#e8e8e8; --c-ink-faint:#c8c8c8;
+  --c-allied:#4dd0ff; --c-axis:#ff7b7b; --c-unknown:#d8d8d8;
+  --c-nation-us:#4dd0ff; --c-nation-uk:#00e676; --c-nation-jp:#ff7b7b;
+  --c-nation-de:#ffd400; --c-nation-it:#d0a4ff; --c-nation-fr:#7fe8ff;
+  --c-track-own:#8fe8ff; --c-track-enemy:#ffffff; --c-uncertain:#ffd400;
+  --c-wake:#ffffff; --c-select:#ffd400;
+  --c-fire:#ffb04a; --c-fire-glow:#ffe45c; --c-smoke:#d8d8d8; --c-light:#fff6be;
+  --c-splash:#ffffff; --c-damage:#ff5c5c;
+  --c-hatch:#ffffff; --c-hatch-a:0; --c-frame-a:.7; --c-depth-dash:0; --c-label-font:mono;
+}
+
 /* ---------- 基础 ---------- */
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
@@ -223,7 +270,12 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 body{user-select:none}
 button,select,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 键盘聚焦：3px 强调色描边 + 外圈柔光（描边/柔光都取主题变量，四套旧主题与高对比主题下都醒目）。
+   注意：这里只用 :focus-visible，鼠标点击不亮焦点环；.inp:focus 的输入框高亮规则不受影响。 */
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 5px var(--accent-soft)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,
+[role="button"]:focus-visible,[role="tab"]:focus-visible,[role="toolbar"] *:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+:focus:not(:focus-visible){outline:none}
 .hidden{display:none!important}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:var(--r-pill);border:2px solid transparent;background-clip:padding-box}
@@ -719,28 +771,156 @@ details .ctxbox{margin-top:8px;padding:10px;background:var(--surface-2);border:1
 :root[data-theme="riso"] #tabs button.on{box-shadow:inset 0 -3px 0 var(--accent)}
 :root[data-theme="riso"] .seg button.on{background:var(--accent);color:var(--on-accent)}
 
+/* ---------- 主题：高对比 ---------- */
+:root[data-theme="contrast"] .btn,:root[data-theme="contrast"] .dbtn,:root[data-theme="contrast"] .abtn,
+:root[data-theme="contrast"] .inp,:root[data-theme="contrast"] .seg,:root[data-theme="contrast"] .chip,
+:root[data-theme="contrast"] .scenPill,:root[data-theme="contrast"] .ibtn{border-width:2px}
+:root[data-theme="contrast"] #dock,:root[data-theme="contrast"] #spectateBar,:root[data-theme="contrast"] .sheet,
+:root[data-theme="contrast"] .menu,:root[data-theme="contrast"] #ctxmenu,:root[data-theme="contrast"] .modal .box,
+:root[data-theme="contrast"] .palBox,:root[data-theme="contrast"] .fleet{border-width:2px;border-color:var(--line-3)}
+:root[data-theme="contrast"] #rail button.on,:root[data-theme="contrast"] #tabs button.on{box-shadow:inset 0 -3px 0 var(--accent)}
+:root[data-theme="contrast"] .btn:focus-visible,
+:root[data-theme="contrast"] :focus-visible{outline:3px solid var(--accent-2);box-shadow:0 0 0 6px rgba(255,212,0,.28)}
+
 /* ---------- 窄屏 ---------- */
 @media (max-width:1440px){ .chip.env{display:none} :root{--side-w:288px} }
 @media (max-width:1240px){ .brand .bsub{display:none} #mission{width:300px} }
 @media (max-width:1100px){ :root{--side-w:268px} #cShip .sStat b{font-size:20px} }
+
+/* ---------- 减少动效：系统开启"减弱动态效果"时关闭所有过渡/动画 ----------
+   只在用户系统级偏好生效，不改变默认外观；canvas 的逐帧绘制不受影响。 */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation:none !important;
+    transition:none !important;
+    scroll-behavior:auto !important;
+  }
+  /* 动画只用于"入场"，关掉后直接显示终态 */
+  .toast,.sheet,.modal .box,.palBox{animation:none !important;transform:none !important}
+  .btn:active,.bar i{transform:none !important}
+}
+
+/* ==========================================================================
+   平板 / 触控：≤1024px
+   —— 侧栏可收起（rail 顶部的收起按钮始终在视口内）、命中区 ≥44px、
+      字号下限 12px、顶栏内容横向滚动保证每个控件都能摸到、海图容器自适应。
+   ========================================================================== */
+@media (max-width:1024px){
+  /* 字号下限：--fs-1 原本 11px，小屏上不再低于 12px */
+  :root{--fs-1:12px; --fs-2:13px; --fs-3:14px; --rail-w:48px; --side-w:248px; --top-h:50px}
+
+  /* 顶栏：内容多时横向滚动（不再 overflow:hidden 裁掉右侧按钮） */
+  #top{overflow-x:auto; overflow-y:hidden; gap:8px; padding:0 10px; scrollbar-width:none}
+  #top::-webkit-scrollbar{display:none}
+
+  /* 命中区 ≥44px：轨道 / 页签 / 动作条 / 图标按钮 / 缩放 / 滑杆 */
+  #rail button{width:44px; height:44px; font-size:var(--fs-4)}
+  #rail button.on::before{left:0}
+  #tabs button{height:44px}
+  .btn,.dbtn,.abtn,.ibtn{min-height:44px}
+  .btn.icon,.ibtn{width:44px}
+  .ibtn{height:44px}
+  #dock .act{width:88px; height:56px}
+  #zoomCtl button{width:44px; height:44px; font-size:20px}
+  .foldBtn{width:44px; height:44px}
+  .seg{height:46px; padding:1px}
+  .seg button{height:44px; min-height:44px; padding:0 12px}
+  input[type=range].slider{height:44px}
+  input[type=range].slider::-webkit-slider-thumb{width:22px; height:22px; margin-top:-9px}
+  .scenPill{height:44px; min-height:44px}
+  .chip{height:34px}
+
+  /* 日志行加高，动作条相应上移，避免压住日志 */
+  #logline{height:40px}
+  #logline .more{padding:8px 10px}
+  #dock{bottom:50px}
+  #spectateBar{bottom:50px}
+  #logPanel{height:44vh}
+
+  /* 海图容器自适应：始终占满剩余空间，浮层按比例收窄 */
+  #main{min-height:0}
+  #chartWrap{min-width:0; min-height:0}
+  canvas#chart{width:100%; height:100%}
+  #mission{width:min(320px,52vw); padding:10px 12px 18px}
+  #battlebar{top:6px; padding:4px 8px 8px}
+  #battlebar .b{min-width:58px; padding:0 10px}
+  #toasts{top:78px; max-width:min(520px,86vw)}
+
+  /* 右侧档案：窄一点，内容仍可读 */
+  #cShip{padding:11px 13px 9px}
+  #cShip .sStat b{font-size:20px}
+  .pane{padding:10px 12px 18px}
+}
+
+/* ==========================================================================
+   小屏 / 竖屏平板：≤820px
+   —— 单列让位给海图，动作条贴底通栏，页签与按钮保持 44px 命中区，字号不小于 12px。
+   ========================================================================== */
+@media (max-width:820px){
+  :root{--fs-1:12px; --fs-2:13px; --rail-w:44px; --side-w:216px; --top-h:52px}
+
+  #top{gap:6px}
+  /* 小屏顶栏只留品牌图标，把宽度让给真实控件（不再出现被裁掉一半的按钮） */
+  .brand .bname,.brand .bsub{display:none}
+  .chips{max-width:30vw; gap:3px}
+  /* 编队行在 216px 侧栏里优先保舰名与状态，舰种次要信息收起 */
+  .frType{display:none}
+  #segTheme .thm{padding:0 7px; font-size:var(--fs-1)}
+  #segTs .ts{padding:0 8px}
+
+  /* 页签与档案：宁窄不挤，仍保证 44px 行高与 12px 字号 */
+  #tabs button{height:44px; font-size:var(--fs-1)}
+  #side{min-width:0}
+  #cShip .shipName{font-size:20px}
+  #cShip .sStat b{font-size:18px}
+  .pane{padding:10px 10px 16px}
+  .stats,.grid4{grid-template-columns:1fr 1fr}
+  .grid3{grid-template-columns:1fr 1fr}
+  .kv{grid-template-columns:1fr}
+
+  /* 海图容器自适应：主区单列，浮层不超出海图 */
+  #main{grid-template-columns:minmax(0,1fr) var(--side-w); min-height:0}
+  #chartWrap{width:100%; height:100%}
+  #mission{width:min(300px,60%); max-width:60%; padding:10px 10px 16px}
+  #mission .t{font-size:var(--fs-3)}
+  #battlebar .b{min-width:48px; padding:0 7px}
+  #battlebar .b b{font-size:var(--fs-4)}
+  #battlebar .b .s2,#battlebar .b i{font-size:10px}
+  #zoomCtl{right:8px}
+  #zoomCtl button{width:44px; height:44px}
+
+  /* 动作条通栏贴底（不再居中浮在图表上） */
+  #dock{left:8px; right:8px; bottom:44px; transform:none; max-width:none}
+  #dock .dockBar{width:100%}
+  #dock .act{flex:1 1 0; width:auto; min-width:0; height:56px}
+  #dock .dockPop{padding:8px; gap:6px; max-height:42vh; overflow:auto}
+  #spectateBar{left:8px; right:8px; bottom:44px; transform:none; flex-wrap:wrap; justify-content:center}
+  #logWrap{left:var(--rail-w); right:0}
+
+  /* 弹层：单列铺满，不再出现横向溢出 */
+  .sheet{padding:16px 14px}
+  .scens{grid-template-columns:1fr}
+  .sheet table{font-size:var(--fs-1)}
+}
+
 
 </style>
 </head>
 <body>
 <div id="app">
 
-  <nav id="rail">
-    <div class="railLogo" title="铁海 1942">铁</div>
-    <div class="railTabs">
-      <button data-pane="p-ship" class="on" title="舰况（Tab 切页）"><span class="i">舰</span><span class="dot"></span></button>
-      <button data-pane="p-fire" title="火控"><span class="i">火</span><span class="dot"></span></button>
-      <button data-pane="p-dam" title="损管"><span class="i">损</span><span class="dot"></span></button>
-      <button data-pane="p-intel" title="情报"><span class="i">情</span><span class="dot"></span></button>
-      <button data-pane="p-ai" title="AI"><span class="i">AI</span><span class="dot"></span></button>
+  <nav id="rail" aria-label="主功能轨道">
+    <div class="railLogo" title="铁海 1942" aria-hidden="true">铁</div>
+    <div class="railTabs" role="group" aria-label="档案页签开关">
+      <button data-pane="p-ship" class="on" aria-label="舰况" aria-pressed="true" aria-controls="p-ship" title="舰况（Tab 切页）"><span class="i" aria-hidden="true">舰</span><span class="dot" aria-hidden="true"></span></button>
+      <button data-pane="p-fire" aria-label="火控" aria-pressed="false" aria-controls="p-fire" title="火控"><span class="i" aria-hidden="true">火</span><span class="dot" aria-hidden="true"></span></button>
+      <button data-pane="p-dam" aria-label="损管" aria-pressed="false" aria-controls="p-dam" title="损管"><span class="i" aria-hidden="true">损</span><span class="dot" aria-hidden="true"></span></button>
+      <button data-pane="p-intel" aria-label="情报" aria-pressed="false" aria-controls="p-intel" title="情报"><span class="i" aria-hidden="true">情</span><span class="dot" aria-hidden="true"></span></button>
+      <button data-pane="p-ai" aria-label="AI 指挥" aria-pressed="false" aria-controls="p-ai" title="AI"><span class="i" aria-hidden="true">AI</span><span class="dot" aria-hidden="true"></span></button>
     </div>
     <div class="railSp"></div>
-    <button id="btnImmersive" title="沉浸模式（H）：只留海图">◱</button>
-    <button id="btnSideToggle" title="收起 / 展开右侧档案">›</button>
+    <button id="btnImmersive" aria-label="沉浸模式：只保留海图" aria-pressed="false" aria-keyshortcuts="H" title="沉浸模式（H）：只留海图">◱</button>
+    <button id="btnSideToggle" aria-label="右侧档案" aria-expanded="true" aria-controls="side" title="收起 / 展开右侧档案">›</button>
   </nav>
 
   <header id="top">
@@ -753,12 +933,12 @@ details .ctxbox{margin-top:8px;padding:10px;background:var(--surface-2);border:1
       <span class="bsub">IRON SEAS</span>
     </div>
 
-    <button class="scenPill" id="btnScenName" data-act="open-scenarios" title="切换战役剧本">
-      <span id="topScen">未选择战役</span><span class="caret">▾</span>
+    <button class="scenPill" id="btnScenName" data-act="open-scenarios" aria-haspopup="dialog" aria-label="切换战役剧本" title="切换战役剧本">
+      <span id="topScen">未选择战役</span><span class="caret" aria-hidden="true">▾</span>
     </button>
 
-    <div class="chips">
-      <span class="chip clock" title="舰钟（仿真时间）"><b id="clock">--:--</b></span>
+    <div class="chips" role="group" aria-label="环境信息">
+      <span class="chip clock" role="timer" aria-label="舰钟（仿真时间）" title="舰钟（仿真时间）"><b id="clock">--:--</b></span>
       <span class="chip env" title="海况等级"><i>海况</i><b id="cSea">—</b></span>
       <span class="chip env" title="风速 / 风向"><i>风</i><b id="cWind">—</b></span>
       <span class="chip env" title="能见度"><i>能见度</i><b id="cVis">—</b></span>
@@ -769,119 +949,120 @@ details .ctxbox{margin-top:8px;padding:10px;background:var(--surface-2);border:1
 
     <div class="grow"></div>
 
-    <div class="seg" id="segTheme" title="界面主题：纸面 / 海图 / 印刷 / 夜间（Shift+T 循环）">
-      <button class="thm on" data-theme-id="paper" title="纸面">纸面</button>
-      <button class="thm" data-theme-id="chart" title="海图：图廓 + 宋体 + 直角">海图</button>
-      <button class="thm" data-theme-id="riso" title="印刷：深褐 + 朱红双色">印刷</button>
-      <button class="thm" data-theme-id="dark" title="夜间">夜间</button>
+    <div class="seg" id="segTheme" role="group" aria-label="界面主题（Shift+T 循环切换）" title="界面主题：纸面 / 海图 / 印刷 / 夜间 / 高对比（Shift+T 循环）">
+      <button class="thm on" data-theme-id="paper" aria-pressed="true" aria-label="纸面主题" title="纸面">纸面</button>
+      <button class="thm" data-theme-id="chart" aria-pressed="false" aria-label="海图主题" title="海图：图廓 + 宋体 + 直角">海图</button>
+      <button class="thm" data-theme-id="riso" aria-pressed="false" aria-label="印刷主题" title="印刷：深褐 + 朱红双色">印刷</button>
+      <button class="thm" data-theme-id="dark" aria-pressed="false" aria-label="夜间主题" title="夜间">夜间</button>
+      <button class="thm" data-theme-id="contrast" aria-pressed="false" aria-label="高对比主题" title="高对比：纯黑底 + 高亮前景 + 清晰描边（无障碍）">高对比</button>
     </div>
 
-    <button class="btn icon" id="btnPalette" title="命令面板（⌘K）">
+    <button class="btn icon" id="btnPalette" aria-label="命令面板" aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Meta+K Control+K" title="命令面板（⌘K）">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
     </button>
 
-    <div class="seg" id="segTs" title="时间压缩（键盘 1 2 3 4）">
-      <button class="ts" data-ts="1">1×</button>
-      <button class="ts" data-ts="4">4×</button>
-      <button class="ts" data-ts="16">16×</button>
-      <button class="ts" data-ts="64">64×</button>
+    <div class="seg" id="segTs" role="group" aria-label="时间压缩（键盘 1 2 3 4）" title="时间压缩（键盘 1 2 3 4）">
+      <button class="ts" data-ts="1" aria-pressed="true" aria-label="1 倍速">1×</button>
+      <button class="ts" data-ts="4" aria-pressed="false" aria-label="4 倍速">4×</button>
+      <button class="ts" data-ts="16" aria-pressed="false" aria-label="16 倍速">16×</button>
+      <button class="ts" data-ts="64" aria-pressed="false" aria-label="64 倍速">64×</button>
     </div>
 
-    <button class="btn primary" id="btnPause" title="暂停 / 继续（空格）">暂停</button>
+    <button class="btn primary" id="btnPause" aria-label="暂停 / 继续" aria-keyshortcuts="Space" title="暂停 / 继续（空格）">暂停</button>
 
-    <button class="btn hidden" id="btnSandbox" data-act="open-sandbox" title="沙盒控制台：随时增删舰船、修复、补弹、改环境">沙盒</button>
+    <button class="btn hidden" id="btnSandbox" data-act="open-sandbox" aria-label="沙盒控制台" aria-haspopup="dialog" title="沙盒控制台：随时增删舰船、修复、补弹、改环境">沙盒</button>
 
-    <button class="btn icon" id="btnMore" title="更多">
+    <button class="btn icon" id="btnMore" aria-label="更多菜单" aria-haspopup="menu" aria-expanded="false" title="更多">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
     </button>
 
-    <select id="selSide" class="btn" title="切换你指挥的阵营">
+    <select id="selSide" class="btn" aria-label="你指挥的阵营" title="切换你指挥的阵营">
       <option value="ALLIED">同盟国</option>
       <option value="AXIS">轴心国</option>
     </select>
 
-    <button class="hidden" id="btnExtend" title="延长交战时间 +30 分钟">+30′</button>
-    <button class="hidden" id="btnSpectate" title="AI 对战 / 观战模式">观战</button>
+    <button class="hidden" id="btnExtend" aria-label="延长交战时间 30 分钟" title="延长交战时间 +30 分钟">+30′</button>
+    <button class="hidden" id="btnSpectate" aria-label="观战模式" title="AI 对战 / 观战模式">观战</button>
   </header>
 
   <div id="main">
-    <section id="chartWrap">
-      <canvas id="chart"></canvas>
+    <section id="chartWrap" aria-label="战术海图">
+      <canvas id="chart" role="img" aria-label="战术海图：点击选舰、拖拽转向、滚轮缩放"></canvas>
       <div class="ov" id="mission"></div>
       <div class="ov" id="battlebar"></div>
 
-      <div id="dock">
+      <div id="dock" role="toolbar" aria-label="指挥动作条">
         <div class="dockBar">
-          <button class="act primary" data-dock-tab="fire" title="开火（穿甲 / 榴弹 / 停火）"><span class="i">◉</span><span class="t">开火</span></button>
-          <button class="act" data-dock-tab="torp" title="鱼雷齐射"><span class="i">➤</span><span class="t">鱼雷</span></button>
-          <button class="act" data-dock-tab="helm" title="航速 / 航向 / 舵"><span class="i">↻</span><span class="t">机动</span></button>
-          <button class="act" data-dock-tab="sensor" title="烟幕 / 雷达 / 探照灯 / 指挥层级"><span class="i">◎</span><span class="t">传感器</span></button>
-          <button class="act" data-dock-tab="order" title="中文口令"><span class="i">⌘</span><span class="t">口令</span></button>
-          <button class="ibtn" id="btnDockToggle" title="收起 / 展开动作条">▾</button>
+          <button class="act primary" data-dock-tab="fire" aria-expanded="false" aria-controls="dockPop-fire" aria-label="开火" title="开火（穿甲 / 榴弹 / 停火）"><span class="i" aria-hidden="true">◉</span><span class="t">开火</span></button>
+          <button class="act" data-dock-tab="torp" aria-expanded="false" aria-controls="dockPop-torp" aria-label="鱼雷" title="鱼雷齐射"><span class="i" aria-hidden="true">➤</span><span class="t">鱼雷</span></button>
+          <button class="act" data-dock-tab="helm" aria-expanded="false" aria-controls="dockPop-helm" aria-label="机动（航速 / 航向 / 舵）" title="航速 / 航向 / 舵"><span class="i" aria-hidden="true">↻</span><span class="t">机动</span></button>
+          <button class="act" data-dock-tab="sensor" aria-expanded="false" aria-controls="dockPop-sensor" aria-label="传感器（烟幕 / 雷达 / 探照灯 / 指挥层级）" title="烟幕 / 雷达 / 探照灯 / 指挥层级"><span class="i" aria-hidden="true">◎</span><span class="t">传感器</span></button>
+          <button class="act" data-dock-tab="order" aria-expanded="false" aria-controls="dockPop-order" aria-label="中文口令" title="中文口令"><span class="i" aria-hidden="true">⌘</span><span class="t">口令</span></button>
+          <button class="ibtn" id="btnDockToggle" aria-label="展开 / 收起动作条" aria-expanded="true" aria-controls="dock" title="收起 / 展开动作条">▾</button>
         </div>
 
-        <div class="dockPop" data-pop="fire">
-          <button class="dbtn danger" data-act="fire" data-arg="AP" data-need-track title="向选定目标开火（穿甲弹）">开火 AP</button>
-          <button class="dbtn" data-act="fire" data-arg="HE" data-need-track title="向选定目标开火（榴弹）">榴弹</button>
-          <button class="dbtn" data-act="ceasefire" title="全炮停火">停火</button>
+        <div class="dockPop" data-pop="fire" id="dockPop-fire" role="group" aria-label="开火选项">
+          <button class="dbtn danger" data-act="fire" data-arg="AP" data-need-track aria-label="开火：穿甲弹" title="向选定目标开火（穿甲弹）">开火 AP</button>
+          <button class="dbtn" data-act="fire" data-arg="HE" data-need-track aria-label="开火：榴弹" title="向选定目标开火（榴弹）">榴弹</button>
+          <button class="dbtn" data-act="ceasefire" aria-label="全炮停火" title="全炮停火">停火</button>
         </div>
 
-        <div class="dockPop" data-pop="torp">
-          <button class="dbtn" data-act="torp" data-arg="4" data-need-track title="4 管扇形雷击">4 管扇形雷击</button>
+        <div class="dockPop" data-pop="torp" id="dockPop-torp" role="group" aria-label="鱼雷选项">
+          <button class="dbtn" data-act="torp" data-arg="4" data-need-track aria-label="4 管扇形雷击" title="4 管扇形雷击">4 管扇形雷击</button>
         </div>
 
-        <div class="dockPop" data-pop="helm">
+        <div class="dockPop" data-pop="helm" id="dockPop-helm" role="group" aria-label="机动选项">
           <span class="dlab">航速</span>
-          <input type="range" class="slider" id="speedSlider" min="0" max="32" step="1" value="0" title="拖动设定航速">
-          <span class="dval" id="speedValue">—</span>
-          <span class="vsep"></span>
+          <input type="range" class="slider" id="speedSlider" min="0" max="32" step="1" value="0" aria-label="航速（节）" aria-valuemin="0" aria-valuemax="32" title="拖动设定航速">
+          <span class="dval" id="speedValue" aria-hidden="true">—</span>
+          <span class="vsep" aria-hidden="true"></span>
           <span class="dlab">航向</span>
-          <input class="inp num" id="inpCourse" type="number" min="0" max="359" step="1" placeholder="000" title="目标航向（真方位 0-359）">
-          <button class="ibtn" data-act="course-set" title="转向（回车）">↵</button>
-          <span class="vsep"></span>
-          <button class="ibtn" data-act="rudder" data-arg="-35" title="左满舵">⟲</button>
-          <button class="ibtn" data-act="rudder" data-arg="0" title="舵回正">○</button>
-          <button class="ibtn" data-act="rudder" data-arg="35" title="右满舵">⟳</button>
+          <input class="inp num" id="inpCourse" type="number" min="0" max="359" step="1" placeholder="000" aria-label="目标航向（真方位 0 到 359 度）" title="目标航向（真方位 0-359）">
+          <button class="ibtn" data-act="course-set" aria-label="设定航向" title="转向（回车）">↵</button>
+          <span class="vsep" aria-hidden="true"></span>
+          <button class="ibtn" data-act="rudder" data-arg="-35" aria-label="左满舵" title="左满舵">⟲</button>
+          <button class="ibtn" data-act="rudder" data-arg="0" aria-label="舵回正" title="舵回正">○</button>
+          <button class="ibtn" data-act="rudder" data-arg="35" aria-label="右满舵" title="右满舵">⟳</button>
         </div>
 
-        <div class="dockPop" data-pop="sensor">
-          <button class="dbtn" data-act="smoke" data-arg="toggle" id="btnSmoke" title="施放 / 停止烟幕">烟幕</button>
-          <button class="dbtn" data-act="radar" data-arg="toggle" id="btnRadar" title="雷达开关">雷达</button>
-          <button class="dbtn" data-act="searchlight" data-arg="toggle" id="btnLight" title="探照灯开关">探照灯</button>
-          <span class="vsep"></span>
+        <div class="dockPop" data-pop="sensor" id="dockPop-sensor" role="group" aria-label="传感器选项">
+          <button class="dbtn" data-act="smoke" data-arg="toggle" id="btnSmoke" aria-pressed="false" aria-label="烟幕" title="施放 / 停止烟幕">烟幕</button>
+          <button class="dbtn" data-act="radar" data-arg="toggle" id="btnRadar" aria-pressed="false" aria-label="雷达" title="雷达开关">雷达</button>
+          <button class="dbtn" data-act="searchlight" data-arg="toggle" id="btnLight" aria-pressed="false" aria-label="探照灯" title="探照灯开关">探照灯</button>
+          <span class="vsep" aria-hidden="true"></span>
           <span class="dlab">指挥层级</span>
-          <div class="seg" id="segRole" title="只影响命令的作用范围与延迟">
-            <button class="role" data-role="CAPTAIN">舰长</button>
-            <button class="role" data-role="FLEET">编队</button>
-            <button class="role" data-role="DEPARTMENT">部门</button>
+          <div class="seg" id="segRole" role="group" aria-label="指挥层级" title="只影响命令的作用范围与延迟">
+            <button class="role" data-role="CAPTAIN" aria-pressed="false" aria-label="舰长层级">舰长</button>
+            <button class="role" data-role="FLEET" aria-pressed="false" aria-label="编队层级">编队</button>
+            <button class="role" data-role="DEPARTMENT" aria-pressed="false" aria-label="部门层级">部门</button>
           </div>
         </div>
 
-        <div class="dockPop" data-pop="order">
-          <input class="inp grow" id="inpOrder" placeholder="中文口令：全队转向 240 / 24 节 / 向最近的敌舰开火 / 放烟幕" autocomplete="off">
-          <button class="dbtn primary" id="btnSendOrder">下达</button>
+        <div class="dockPop" data-pop="order" id="dockPop-order" role="group" aria-label="中文口令">
+          <input class="inp grow" id="inpOrder" aria-label="中文口令输入" placeholder="中文口令：全队转向 240 / 24 节 / 向最近的敌舰开火 / 放烟幕" autocomplete="off">
+          <button class="dbtn primary" id="btnSendOrder" aria-label="下达口令" title="下达口令（回车）">下达</button>
         </div>
       </div>
 
-      <div id="spectateBar">
-        <span class="sbTag">观战</span>
-        <div class="seg" id="segCam" title="观战镜头">
-          <button class="cam" data-cam="DIRECTOR">导播</button>
-          <button class="cam" data-cam="FREE">自由</button>
-          <button class="cam" data-cam="ALLIED">同盟</button>
-          <button class="cam" data-cam="AXIS">轴心</button>
+      <div id="spectateBar" role="region" aria-label="观战控制">
+        <span class="sbTag" aria-hidden="true">观战</span>
+        <div class="seg" id="segCam" role="group" aria-label="观战镜头" title="观战镜头">
+          <button class="cam" data-cam="DIRECTOR" aria-pressed="false" aria-label="导播镜头">导播</button>
+          <button class="cam" data-cam="FREE" aria-pressed="false" aria-label="自由镜头">自由</button>
+          <button class="cam" data-cam="ALLIED" aria-pressed="false" aria-label="同盟视角">同盟</button>
+          <button class="cam" data-cam="AXIS" aria-pressed="false" aria-label="轴心视角">轴心</button>
         </div>
-        <span class="vsep"></span>
-        <button class="btn" id="btnPrevShip" title="上一个目标（[）">‹ 上一艘</button>
-        <button class="btn" id="btnNextShip" title="下一艘（]）">下一艘 ›</button>
-        <span class="vsep"></span>
-        <button class="btn" id="btnImmersive2" title="沉浸模式（H）">沉浸</button>
-        <button class="btn primary" id="btnExitSpectate" title="回到参战模式">退出观战</button>
+        <span class="vsep" aria-hidden="true"></span>
+        <button class="btn" id="btnPrevShip" aria-label="上一个目标" aria-keyshortcuts="[" title="上一个目标（[）">‹ 上一艘</button>
+        <button class="btn" id="btnNextShip" aria-label="下一个目标" aria-keyshortcuts="]" title="下一艘（]）">下一艘 ›</button>
+        <span class="vsep" aria-hidden="true"></span>
+        <button class="btn" id="btnImmersive2" aria-label="沉浸模式" aria-keyshortcuts="H" aria-pressed="false" title="沉浸模式（H）">沉浸</button>
+        <button class="btn primary" id="btnExitSpectate" aria-label="退出观战，回到参战模式" title="回到参战模式">退出观战</button>
       </div>
 
-      <div id="zoomCtl">
-        <button id="btnZin" title="放大">＋</button>
-        <button id="btnZout" title="缩小">－</button>
+      <div id="zoomCtl" role="group" aria-label="海图缩放">
+        <button id="btnZin" aria-label="放大" aria-keyshortcuts="+" title="放大">＋</button>
+        <button id="btnZout" aria-label="缩小" aria-keyshortcuts="-" title="缩小">－</button>
       </div>
 
       <div id="steerHint"></div>
@@ -903,9 +1084,9 @@ details .ctxbox{margin-top:8px;padding:10px;background:var(--surface-2);border:1
       </div>
     </section>
 
-    <aside id="side">
-      <div class="shipChip none" id="cShip">
-        <span class="flagDot" id="shipFlag"></span>
+    <aside id="side" aria-label="舰船档案">
+      <div class="shipChip none" id="cShip" role="group" aria-label="当前舰船">
+        <span class="flagDot" id="shipFlag" aria-hidden="true"></span>
         <div class="shipText">
           <div class="shipName" id="cShipName">未选择舰船</div>
           <div class="shipMeta" id="cShipMeta">在海图上点选一艘己方舰</div>
@@ -918,20 +1099,20 @@ details .ctxbox{margin-top:8px;padding:10px;background:var(--surface-2);border:1
         </div>
       </div>
       <div class="sideHead">
-        <div id="tabs">
-          <button data-pane="p-ship" class="on">舰况<span class="dot"></span></button>
-          <button data-pane="p-fire">火控<span class="dot"></span></button>
-          <button data-pane="p-dam">损管<span class="dot"></span></button>
-          <button data-pane="p-intel">情报<span class="dot"></span></button>
-          <button data-pane="p-ai">AI<span class="dot"></span></button>
+        <div id="tabs" role="tablist" aria-label="档案页签">
+          <button id="tab-p-ship" data-pane="p-ship" class="on" role="tab" aria-selected="true" aria-controls="p-ship">舰况<span class="dot" aria-hidden="true"></span></button>
+          <button id="tab-p-fire" data-pane="p-fire" role="tab" aria-selected="false" aria-controls="p-fire">火控<span class="dot" aria-hidden="true"></span></button>
+          <button id="tab-p-dam" data-pane="p-dam" role="tab" aria-selected="false" aria-controls="p-dam">损管<span class="dot" aria-hidden="true"></span></button>
+          <button id="tab-p-intel" data-pane="p-intel" role="tab" aria-selected="false" aria-controls="p-intel">情报<span class="dot" aria-hidden="true"></span></button>
+          <button id="tab-p-ai" data-pane="p-ai" role="tab" aria-selected="false" aria-controls="p-ai">AI<span class="dot" aria-hidden="true"></span></button>
         </div>
       </div>
       <div class="paneWrap">
-        <div class="pane on" id="p-ship"></div>
-        <div class="pane" id="p-fire"></div>
-        <div class="pane" id="p-dam"></div>
-        <div class="pane" id="p-intel"></div>
-        <div class="pane" id="p-ai"></div>
+        <div class="pane on" id="p-ship" role="tabpanel" aria-labelledby="tab-p-ship"></div>
+        <div class="pane" id="p-fire" role="tabpanel" aria-labelledby="tab-p-fire"></div>
+        <div class="pane" id="p-dam" role="tabpanel" aria-labelledby="tab-p-dam"></div>
+        <div class="pane" id="p-intel" role="tabpanel" aria-labelledby="tab-p-intel"></div>
+        <div class="pane" id="p-ai" role="tabpanel" aria-labelledby="tab-p-ai"></div>
       </div>
     </aside>
   </div>
@@ -965,9 +1146,60 @@ details .ctxbox{margin-top:8px;padding:10px;background:var(--surface-2);border:1
   import { initTheme } from "./src/ui/theme.js";
   import { initFold } from "./src/ui/fold.js";
   import { bootApp } from "./src/ui/app.js";
+
+  // 可访问性状态同步：.on / .open / .collapsed / .immersive 这些类仍是唯一事实来源
+  // （app.js / theme.js 只管类），这里只把类翻译成 aria-selected / aria-pressed / aria-expanded，
+  // 让屏幕阅读器读到的是真实状态而不是写死在 HTML 里的初始值。不改动任何交互与渲染。
+  function initA11y() {
+    const set = (el, attr, on) => {
+      const v = on ? "true" : "false";
+      if (el && el.getAttribute(attr) !== v) el.setAttribute(attr, v);
+    };
+    const all = (sel) => Array.prototype.slice.call(document.querySelectorAll(sel));
+    const sync = () => {
+      try {
+        // 右侧页签：selected + 面板显隐
+        for (const b of all("#tabs button[data-pane]")) set(b, "aria-selected", b.classList.contains("on"));
+        for (const p of all(".pane")) set(p, "aria-hidden", !p.classList.contains("on"));
+        // 左轨道与顶栏分段按钮：pressed
+        for (const b of all("#rail button[data-pane]")) set(b, "aria-pressed", b.classList.contains("on"));
+        for (const b of all("#segTheme [data-theme-id], #segTs .ts, #segRole .role, #segCam .cam")) set(b, "aria-pressed", b.classList.contains("on"));
+        for (const id of ["btnSmoke", "btnRadar", "btnLight"]) {
+          const b = document.getElementById(id);
+          if (b) set(b, "aria-pressed", b.classList.contains("on"));
+        }
+        // 动作条：展开的层 + 是否收起
+        for (const b of all("#dock .act")) set(b, "aria-expanded", b.classList.contains("on"));
+        const dock = document.getElementById("dock");
+        if (dock) set(document.getElementById("btnDockToggle"), "aria-expanded", !dock.classList.contains("collapsed"));
+        // 整体布局状态
+        const app = document.getElementById("app");
+        if (app) {
+          set(document.getElementById("btnSideToggle"), "aria-expanded", !app.classList.contains("side-hidden"));
+          set(document.getElementById("btnImmersive"), "aria-pressed", app.classList.contains("immersive"));
+          set(document.getElementById("btnImmersive2"), "aria-pressed", app.classList.contains("immersive"));
+        }
+        // 命令面板 / 更多菜单：打开状态
+        for (const [btnId, panelId] of [["btnPalette", "palette"], ["btnMore", "moreMenu"]]) {
+          const btn = document.getElementById(btnId), panel = document.getElementById(panelId);
+          if (btn && panel) set(btn, "aria-expanded", panel.classList.contains("on"));
+        }
+      } catch (e) { /* 可访问性同步失败绝不能影响游戏 */ }
+    };
+    sync();
+    // 类变化即同步（观察属性而非子树，面板重建不会触发额外开销）
+    try {
+      if (typeof MutationObserver === "function") {
+        const root = document.getElementById("app") || document.body;
+        new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ["class"], subtree: true });
+      }
+    } catch (e) { /* 老浏览器没有 MutationObserver 时保持初始 aria 值 */ }
+  }
+
   initTheme();   // 先定主题再建界面：canvas 第一帧就是对的颜色
   bootApp();
   initFold();    // 接管所有窗口的收起控件 + 恢复上次的收起状态
+  initA11y();    // ARIA 状态跟随后续的页签 / 主题 / 动作条切换
 </script>
 </body>
 </html>

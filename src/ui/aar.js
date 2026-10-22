@@ -20,8 +20,8 @@ export function magazineText(shipName, result) {
 // 现在把沉没/倾覆、弹药库各结果、鱼雷命中/哑弹、穿甲、普通命中、起火、结局都收进来，
 // 命中按"同一目标 5 秒内去重"，超长时按重要度取前 400 条再按时间排列。
 const TIMELINE_RANK = {
-  'victory.achieved': 100, 'ship.sink': 100, 'ship.capsize': 96, 'dam.magazine': 92,
-  'torp.hit': 90, 'torp.dud': 86, 'gun.penetration': 78, 'dam.fire': 60, 'gun.hit': 66,
+  'victory.achieved': 100, 'ship.sink': 100, 'ship.capsize': 96, 'gun.friendlyfire': 95, 'dam.magazine': 92,
+  'torp.hit': 90, 'torp.dud': 86, 'gun.penetration': 78, 'scenario.message': 70, 'dam.fire': 60, 'gun.hit': 66,
 };
 const TIMELINE_MAX = 400;
 const GUN_HIT_DEDUPE_S = 5;
@@ -30,6 +30,7 @@ const GUN_HIT_DEDUPE_S = 5;
 const TIMELINE_QUOTA = {
   'gun.penetration': 120, 'gun.hit': 120, 'dam.fire': 60, 'torp.hit': 80, 'torp.dud': 40,
   'dam.magazine': 80, 'ship.sink': 40, 'ship.capsize': 20, 'victory.achieved': 5,
+  'gun.friendlyfire': 40, 'scenario.message': 60,
 };
 
 export function describeEvent(e, per) {
@@ -47,6 +48,8 @@ export function describeEvent(e, per) {
     case 'gun.hit': return shipName + ' 被命中' + (atkName ? '（' + atkName + '）' : '');
     case 'dam.fire': return shipName + ' 起火（舱段 ' + (e.compartment === null || e.compartment === undefined ? '?' : e.compartment) + '）';
     case 'victory.achieved': return '交战结束：' + (e.text || e.winner);
+    case 'gun.friendlyfire': return shipName + ' 被本方误击' + (e.killerName ? '（' + e.killerName + '）' : '') + (e.reason ? '：' + e.reason : '');
+    case 'scenario.message': return '剧本：' + (e.text || '');
     default: return e.type;
   }
 }
