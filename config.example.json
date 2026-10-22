@@ -1,0 +1,22 @@
+{
+  "llm": {
+    "baseUrl": "https://opencode.ai/zen/go/v1",
+    "model": "deepseek-v4.1-flash",
+    "apiKey": "oc_sk_xxx",
+    "timeoutMs": 60000,
+    "userAgent": "iron-seas-1942/1.0",
+    "headers": {
+      "x-opencode-session": "iron-seas-1942-<stable-id>"
+    }
+  },
+  "_alternatives": {
+    "deepseek_official": {
+      "baseUrl": "https://api.deepseek.com/v1",
+      "model": "deepseek-chat"
+    },
+    "local_ollama": {
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "qwen2.5:14b"
+    }
+  }
+}

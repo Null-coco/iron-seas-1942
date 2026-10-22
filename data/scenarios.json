@@ -1,0 +1,2847 @@
+{
+  "version": 1,
+  "_meta": {
+    "title": "铁海 1942 历史战役剧本集",
+    "compiledBy": "scenarios-docs (T6)",
+    "date": "2026-10-17",
+    "contract": "ARCHITECTURE.md §2/§3；condition.type ∈ SINK|SINK_ANY|DISABLE|SINK_COUNT|SURVIVE|EXIT|PROTECT",
+    "timeNote": "start.date 一律为 UTC ISO 时刻；historicalNote 中的钟点为当地时间。夜战剧本按当地夜间换算 UTC，保证开局即夜战。",
+    "envNote": "scenario.env 为权威环境输入；start.env 为 World→Environment 的同值副本（world.js 读取 start.env）。",
+    "classRefNote": "ships[].class 为 data/ships_*.json 的 class 字段（ShipDatabase.resolve 不区分大小写）。",
+    "crewQualityLegend": {
+      "0.65": "匆忙征召/新舰新兵",
+      "0.7": "夜战训练不足（萨沃岛美军）",
+      "0.85": "普通",
+      "1.0": "训练有素",
+      "1.15": "精锐（日军夜战、皇家海军老舰）"
+    },
+    "substitutions": "替代映射：郡级重巡→County；胡德→Hood；战列巡洋舰声望→Renown；KGV→KingGeorgeV；约克级→York；林仙级→Leander；城级轻巡→Town；部族级驱逐舰→Tribal；美 8 英寸条约重巡（北安普顿/波特兰/新奥尔良/彭萨科拉）各自独立；布鲁克林级→Brooklyn；亚特兰大级→Atlanta；弗莱彻级→Fletcher；其余美驱（法拉格特/马汉/本汉姆/西姆斯/本森/利弗莫尔）→Bagley；德舰：欧根亲王→AdmiralHipper、施佩伯爵→Deutschland、Z 驱→Leipzig 近似；意舰：利托里奥→VittorioVeneto、菲乌梅/波拉/戈里齐亚→Zara、意大利驱逐舰未建模故省略；日舰：青叶级→Aoba、高雄级→Takao、妙高级→Takao、天龙/长良/神通/阿武隈→Tenryu、夕张→Yubari、吹雪/朝潮→Fubuki、阳炎/夕云/白露→Kagero、岛风/扶桑/最上 独立；法国：让·巴尔→JeanBart，维希巡洋舰→Brooklyn 近似，维希大型驱逐舰→Fletcher/Bagley 近似。"
+  },
+  "_classManifest": {
+    "AdmiralHipper": [
+      "denmark_strait_1941"
+    ],
+    "Aoba": [
+      "savo_island_1942"
+    ],
+    "Atlanta": [
+      "first_guadalcanal_1942"
+    ],
+    "Bagley": [
+      "savo_island_1942",
+      "first_guadalcanal_1942",
+      "komandorski_1943",
+      "casablanca_1942"
+    ],
+    "Bismarck": [
+      "denmark_strait_1941"
+    ],
+    "Brooklyn": [
+      "first_guadalcanal_1942",
+      "surigao_strait_1944",
+      "komandorski_1943",
+      "casablanca_1942"
+    ],
+    "Colorado": [
+      "surigao_strait_1944"
+    ],
+    "County": [
+      "denmark_strait_1941",
+      "savo_island_1942",
+      "north_cape_1943"
+    ],
+    "Deutschland": [
+      "river_plate_1939"
+    ],
+    "Fletcher": [
+      "first_guadalcanal_1942",
+      "surigao_strait_1944",
+      "casablanca_1942",
+      "sandbox"
+    ],
+    "Fubuki": [
+      "first_guadalcanal_1942",
+      "surigao_strait_1944",
+      "java_sea_1942",
+      "komandorski_1943"
+    ],
+    "Fuso": [
+      "surigao_strait_1944"
+    ],
+    "Hood": [
+      "denmark_strait_1941"
+    ],
+    "JeanBart": [
+      "casablanca_1942"
+    ],
+    "Kagero": [
+      "savo_island_1942",
+      "first_guadalcanal_1942",
+      "surigao_strait_1944",
+      "java_sea_1942",
+      "sandbox"
+    ],
+    "KingGeorgeV": [
+      "denmark_strait_1941",
+      "north_cape_1943"
+    ],
+    "Kongo": [
+      "first_guadalcanal_1942",
+      "sandbox"
+    ],
+    "Leander": [
+      "river_plate_1939",
+      "java_sea_1942"
+    ],
+    "Leipzig": [
+      "north_cape_1943"
+    ],
+    "Mogami": [
+      "surigao_strait_1944"
+    ],
+    "NewOrleans": [
+      "savo_island_1942",
+      "first_guadalcanal_1942",
+      "casablanca_1942",
+      "sandbox"
+    ],
+    "Northampton": [
+      "savo_island_1942",
+      "surigao_strait_1944",
+      "java_sea_1942"
+    ],
+    "Pensacola": [
+      "komandorski_1943",
+      "casablanca_1942"
+    ],
+    "Portland": [
+      "first_guadalcanal_1942",
+      "surigao_strait_1944"
+    ],
+    "QueenElizabeth": [
+      "matapan_1941"
+    ],
+    "Scharnhorst": [
+      "north_cape_1943"
+    ],
+    "Shimakaze": [
+      "sandbox"
+    ],
+    "SouthDakota": [
+      "casablanca_1942",
+      "sandbox"
+    ],
+    "Takao": [
+      "savo_island_1942",
+      "java_sea_1942",
+      "komandorski_1943",
+      "sandbox"
+    ],
+    "Tenryu": [
+      "savo_island_1942",
+      "first_guadalcanal_1942",
+      "java_sea_1942",
+      "komandorski_1943"
+    ],
+    "Town": [
+      "north_cape_1943"
+    ],
+    "Tribal": [
+      "north_cape_1943",
+      "java_sea_1942",
+      "matapan_1941"
+    ],
+    "VittorioVeneto": [
+      "matapan_1941"
+    ],
+    "York": [
+      "river_plate_1939",
+      "java_sea_1942"
+    ],
+    "Yubari": [
+      "savo_island_1942"
+    ],
+    "Zara": [
+      "matapan_1941"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "denmark_strait_1941",
+      "nameZh": "丹麦海峡海战",
+      "date": "1941-05-24",
+      "place": "丹麦海峡（格陵兰—冰岛之间，约 63°30′N 32°W）",
+      "historicalNote": "1941 年 5 月 24 日晨，吕特晏斯海军上将率 Bismarck 与 Prinz Eugen 由波罗的海突入大西洋执行破交（莱茵演习）。霍兰中将率战列巡洋舰 Hood、新锐战列舰 Prince of Wales 在丹麦海峡拦截，重巡 Norfolk、Suffolk 以雷达尾随跟踪。0552（本地约 0352）英舰在约 24 km 上开火；约 0600，Bismarck 第 5 次齐射在约 15 km 上击穿 Hood 后部弹药库，Hood 在 3 分钟内爆炸沉没，全舰 1418 人仅 3 人生还。Prince of Wales 与 Bismarck 对射后中 4 弹、炮塔故障被迫脱离（新舰新兵、未完成射击试验）。Bismarck 亦中 3 弹，其中 1 弹击破首部燃油舱留下油迹。此战使德国水面破交战略破产；3 天后 Bismarck 在法国外海被皇家海军围歼。",
+      "start": {
+        "lat": 63.35,
+        "lon": -32.2,
+        "date": "1941-05-24T05:30:00Z",
+        "env": {
+          "windKn": 18,
+          "windDirDeg": 70,
+          "visibilityNm": 16,
+          "cloudCover": 0.8,
+          "seaState": 4
+        }
+      },
+      "env": {
+        "windKn": 18,
+        "windDirDeg": 70,
+        "visibilityNm": 16,
+        "cloudCover": 0.8,
+        "seaState": 4
+      },
+      "_oobNote": "Hood 乘员素质 1.0、Prince of Wales 0.65（新舰新兵、炮塔故障史实）；Norfolk/Suffolk 以 County 级数据代入。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "英国本土舰队（霍兰分队）",
+          "objective": "拦截并击沉 Bismarck；再不行也要令其无法继续破交",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "德国海军（吕特晏斯分队）",
+          "objective": "击破拦截兵力，突入大西洋执行破交",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.4
+        }
+      },
+      "ships": [
+        {
+          "id": "bismarck",
+          "name": "俾斯麦",
+          "class": "Bismarck",
+          "side": "AXIS",
+          "lat": 63.52,
+          "lon": -32.36,
+          "heading": 215,
+          "speed": 27,
+          "role": "flagship",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "prinz_eugen",
+          "name": "欧根亲王",
+          "class": "AdmiralHipper",
+          "side": "AXIS",
+          "lat": 63.52588,
+          "lon": -32.35078,
+          "heading": 215,
+          "speed": 27,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "hood",
+          "name": "胡德",
+          "class": "Hood",
+          "side": "ALLIED",
+          "lat": 63.32,
+          "lon": -32.12,
+          "heading": 300,
+          "speed": 28,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "prince_of_wales",
+          "name": "威尔士亲王",
+          "class": "KingGeorgeV",
+          "side": "ALLIED",
+          "lat": 63.31596,
+          "lon": -32.10445,
+          "heading": 300,
+          "speed": 28,
+          "role": "line",
+          "crewQuality": 0.65
+        },
+        {
+          "id": "norfolk",
+          "name": "诺福克",
+          "class": "County",
+          "side": "ALLIED",
+          "lat": 63.62291,
+          "lon": -32.03082,
+          "heading": 215,
+          "speed": 26,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "suffolk",
+          "name": "萨福克",
+          "class": "County",
+          "side": "ALLIED",
+          "lat": 63.62308,
+          "lon": -32.16627,
+          "heading": 215,
+          "speed": 25,
+          "role": "screen",
+          "crewQuality": 0.85
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK",
+            "shipIds": [
+              "bismarck"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "Bismarck 被击沉，破交编队覆灭"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "DISABLE",
+            "shipIds": [
+              "bismarck"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "Bismarck 失去机动能力，破交任务失败"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "hood",
+              "prince_of_wales"
+            ]
+          },
+          "result": "AXIS",
+          "text": "击沉同盟国主力舰，打开大西洋通道"
+        }
+      ],
+      "_requiredClasses": [
+        "AdmiralHipper",
+        "Bismarck",
+        "County",
+        "Hood",
+        "KingGeorgeV"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 03:21（时差 -2.15 h）。"
+    },
+    {
+      "id": "river_plate_1939",
+      "nameZh": "拉普拉塔河口海战",
+      "date": "1939-12-13",
+      "place": "南大西洋，乌拉圭—阿根廷外海（约 34°30′S 49°W）",
+      "historicalNote": "1939 年 12 月 13 日晨，朗斯多夫上校指挥袖珍战列舰 Admiral Graf Spee 在南美海域破交两个月后，与哈伍德准将的英国南美分队（重巡 Exeter、轻巡 Ajax、Achilles）遭遇。0614（当地）双方在约 20,000 码上互相发现，朗斯多夫误判为轻巡掩护的运输队而直取，英舰随即分成两路夹击：Exeter 自南、Ajax/Achilles 自北。Exeter 被 11 英寸炮重创（全炮塔失效、进水濒临倾覆）退出战斗；两艘轻巡持续在 8,000–13,000 码骚扰并多次命中 Graf Spee，迫其放弃捕获船。Graf Spee 当晚进入蒙得维的亚，误信英军主力合围（实际仅 HMNZS Achilles 与重巡 Cumberland 在港外），12 月 17 日自沉于河口。Exeter 阵亡 61 人。",
+      "start": {
+        "lat": -34.5,
+        "lon": -49.4,
+        "date": "1939-12-13T09:36:00Z",
+        "env": {
+          "windKn": 10,
+          "windDirDeg": 135,
+          "visibilityNm": 18,
+          "cloudCover": 0.25,
+          "seaState": 3
+        }
+      },
+      "env": {
+        "windKn": 10,
+        "windDirDeg": 135,
+        "visibilityNm": 18,
+        "cloudCover": 0.25,
+        "seaState": 3
+      },
+      "_oobNote": "Graf Spee 以 Deutschland 级数据代入；Exeter→York；Ajax/Achilles→Leander。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "英国南美分队（哈伍德）",
+          "objective": "击伤或击沉 Graf Spee，逼其退入中立港",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.25
+        },
+        "AXIS": {
+          "nameZh": "德国海军（朗斯多夫分队）",
+          "objective": "击退拦截兵力后向东脱离，继续破交",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.35
+        }
+      },
+      "ships": [
+        {
+          "id": "graf_spee",
+          "name": "施佩伯爵海军上将",
+          "class": "Deutschland",
+          "side": "AXIS",
+          "lat": -34.46,
+          "lon": -49.1,
+          "heading": 250,
+          "speed": 24,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "exeter",
+          "name": "埃克塞特",
+          "class": "York",
+          "side": "ALLIED",
+          "lat": -34.55,
+          "lon": -49.3,
+          "heading": 75,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "ajax",
+          "name": "阿贾克斯",
+          "class": "Leander",
+          "side": "ALLIED",
+          "lat": -34.4,
+          "lon": -49.32,
+          "heading": 75,
+          "speed": 20,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "achilles",
+          "name": "阿基里斯",
+          "class": "Leander",
+          "side": "ALLIED",
+          "lat": -34.40257,
+          "lon": -49.33156,
+          "heading": 75,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 1
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "DISABLE",
+            "shipIds": [
+              "graf_spee"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "Graf Spee 被重创困于河口（历史结局：自沉）"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK",
+            "shipIds": [
+              "graf_spee"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "Graf Spee 被击沉"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "exeter",
+              "ajax",
+              "achilles"
+            ]
+          },
+          "result": "AXIS",
+          "text": "击沉英舰，突入南大西洋继续破交"
+        }
+      ],
+      "_requiredClasses": [
+        "Deutschland",
+        "Leander",
+        "York"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地06:18（1939-12-13T09:36:00Z）为开局，史实依据：1939-12-13 当地 06:14–06:18 拉普拉斯河口首次发现并开火（Graf Spee 被 Exeter 分队发现）。"
+    },
+    {
+      "id": "savo_island_1942",
+      "nameZh": "萨沃岛海战",
+      "date": "1942-08-09",
+      "place": "所罗门群岛，萨沃岛—瓜达尔卡纳尔岛之间",
+      "historicalNote": "1942 年 8 月 8—9 日夜，三川军一中将率第 8 舰队（重巡 Chōkai、Aoba、Kako、Furutaka、Kinugasa，轻巡 Tenryū、Yūbari，驱逐舰 Yūnagi）自拉包尔高速南下，穿越 St. George 海峡，当地 01:30（即 1942-08-08T14:50Z，本剧本开局时刻）突入萨沃岛以北盟军巡逻区。盟军南、北两支巡洋舰分队被探照灯与九三式氧气鱼雷的夜间突击分割击破：Canberra 次日晨自沉，Astoria、Quincy、Vincennes 相继沉没，Chicago 首部中雷重创。日军仅 Kako 在归航途中被潜艇 S-44 击沉，取得夜战压倒性胜利；但因未攻击运输船，盟军登陆场得以保全。此役暴露美军夜战训练、雷达使用与氧气鱼雷的巨大差距。",
+      "start": {
+        "lat": -9.1,
+        "lon": 159.72,
+        "date": "1942-08-08T14:50:00Z",
+        "env": {
+          "windKn": 4,
+          "windDirDeg": 160,
+          "visibilityNm": 6,
+          "cloudCover": 0.9,
+          "seaState": 2
+        }
+      },
+      "env": {
+        "windKn": 4,
+        "windDirDeg": 160,
+        "visibilityNm": 6,
+        "cloudCover": 0.9,
+        "seaState": 2
+      },
+      "_oobNote": "日军全员 crewQuality=1.15、盟军全员 0.7（夜战训练差距，真实感要求）；Canberra→County（郡级重巡数据近似澳洲巡洋舰）。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "盟军南太平洋部队（特纳/克拉奇利）",
+          "objective": "掩护登陆场，阻止日军舰炮突入运输船锚地",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "日本海军第 8 舰队（三川）",
+          "objective": "夜袭击破盟军巡洋舰分队，随后高速撤离",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.45
+        }
+      },
+      "ships": [
+        {
+          "id": "chokai",
+          "name": "鸟海",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": -9.1,
+          "lon": 159.82,
+          "heading": 150,
+          "speed": 26,
+          "role": "flagship",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "aoba",
+          "name": "青叶",
+          "class": "Aoba",
+          "side": "AXIS",
+          "lat": -9.09374,
+          "lon": 159.81636,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "kako",
+          "name": "加古",
+          "class": "Aoba",
+          "side": "AXIS",
+          "lat": -9.08748,
+          "lon": 159.81272,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "furutaka",
+          "name": "古鹰",
+          "class": "Aoba",
+          "side": "AXIS",
+          "lat": -9.08122,
+          "lon": 159.80908,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "kinugasa",
+          "name": "衣笠",
+          "class": "Aoba",
+          "side": "AXIS",
+          "lat": -9.07496,
+          "lon": 159.80544,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "tenryu",
+          "name": "天龙",
+          "class": "Tenryu",
+          "side": "AXIS",
+          "lat": -9.06791,
+          "lon": 159.80135,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "yubari",
+          "name": "夕张",
+          "class": "Yubari",
+          "side": "AXIS",
+          "lat": -9.06165,
+          "lon": 159.79771,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "yunagi",
+          "name": "夕凪",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -9.0546,
+          "lon": 159.79362,
+          "heading": 150,
+          "speed": 26,
+          "role": "line",
+          "crewQuality": 1.15,
+          "note": "历史上为白露型；此处以阳炎型数据近似"
+        },
+        {
+          "id": "chicago",
+          "name": "芝加哥",
+          "class": "Northampton",
+          "side": "ALLIED",
+          "lat": -9.28,
+          "lon": 159.86,
+          "heading": 290,
+          "speed": 12,
+          "role": "flagship",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "canberra",
+          "name": "堪培拉",
+          "class": "County",
+          "side": "ALLIED",
+          "lat": -9.28,
+          "lon": 159.87092,
+          "heading": 290,
+          "speed": 12,
+          "role": "line",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "patterson",
+          "name": "帕特森",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.29447,
+          "lon": 159.86,
+          "heading": 290,
+          "speed": 12,
+          "role": "screen",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "bagley",
+          "name": "巴格利",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.29447,
+          "lon": 159.85181,
+          "heading": 290,
+          "speed": 12,
+          "role": "screen",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "vincennes",
+          "name": "文森斯",
+          "class": "NewOrleans",
+          "side": "ALLIED",
+          "lat": -9.12,
+          "lon": 160.02,
+          "heading": 290,
+          "speed": 12,
+          "role": "line",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "quincy",
+          "name": "昆西",
+          "class": "NewOrleans",
+          "side": "ALLIED",
+          "lat": -9.12,
+          "lon": 160.03092,
+          "heading": 290,
+          "speed": 12,
+          "role": "line",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "astoria",
+          "name": "阿斯托里亚",
+          "class": "NewOrleans",
+          "side": "ALLIED",
+          "lat": -9.12,
+          "lon": 160.04184,
+          "heading": 290,
+          "speed": 12,
+          "role": "line",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "wilson",
+          "name": "威尔逊",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.13447,
+          "lon": 160.02,
+          "heading": 290,
+          "speed": 12,
+          "role": "screen",
+          "crewQuality": 0.7
+        },
+        {
+          "id": "helm",
+          "name": "赫尔姆",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.13447,
+          "lon": 160.01181,
+          "heading": 290,
+          "speed": 12,
+          "role": "screen",
+          "crewQuality": 0.7
+        }
+      ],
+      "objectives": [
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_COUNT",
+            "n": 3
+          },
+          "result": "AXIS",
+          "text": "击沉 3 艘以上盟军巡洋舰，达成夜袭目的"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SURVIVE",
+            "seconds": 10800
+          },
+          "result": "ALLIED",
+          "text": "坚持到天明并保住运输船锚地（日军撤离）"
+        }
+      ],
+      "_requiredClasses": [
+        "Aoba",
+        "Bagley",
+        "County",
+        "Kagero",
+        "NewOrleans",
+        "Northampton",
+        "Takao",
+        "Tenryu",
+        "Yubari"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地01:30（1942-08-08T14:50:00Z）为开局，史实依据：1942-08-09 当地 01:30 三川分队突入萨沃岛以北（史实开火 0130–0145）。"
+    },
+    {
+      "id": "first_guadalcanal_1942",
+      "nameZh": "第一次瓜达尔卡纳尔海战",
+      "date": "1942-11-13",
+      "place": "瓜达尔卡纳尔岛西北，Ironbottom Sound / Sealark 水道",
+      "historicalNote": "1942 年 11 月 12—13 日夜（当地 01:48，即 1942-11-12T15:05Z，本剧本开局时刻），阿部弘毅中将率战列舰 Hiei、Kirishima 与轻巡 Nagara、驱逐舰 11 艘，奉命炮击亨德森机场。卡拉汉少将的第 67 特混舰队（重巡 San Francisco、Portland，轻巡 Helena、Atlanta、Juneau 及 8 艘驱逐舰）在黑暗中迎面撞上日军。双方在 1,000–4,000 码的极近距离混战：Atlanta、Juneau、Cushing、Laffey、Barton、Monssen、Aaron Ward 相继被击沉或重创，San Francisco、Portland 重创；日军 Hiei 被多次命中后丧失操舵，次日被美军飞机与自沉处置，Akatsuki、Yudachi 沉没。卡拉汉与斯科特两位少将阵亡。日军炮击机场的任务失败，但以极近距离夜战再次重创美军。",
+      "start": {
+        "lat": -9.2,
+        "lon": 159.8,
+        "date": "1942-11-12T15:05:00Z",
+        "env": {
+          "windKn": 3,
+          "windDirDeg": 180,
+          "visibilityNm": 4,
+          "cloudCover": 1,
+          "seaState": 2
+        }
+      },
+      "env": {
+        "windKn": 3,
+        "windDirDeg": 180,
+        "visibilityNm": 4,
+        "cloudCover": 1,
+        "seaState": 2
+      },
+      "_oobNote": "驱逐舰按史实同级代入：晓→Fubuki、照月(Akizuki)→Kagero 近似、夕立(Shiratsuyu)→Kagero；美驱（马汉/本森/本汉姆/西姆斯/利弗莫尔）→Bagley。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "美国第 67 特混舰队（卡拉汉）",
+          "objective": "阻止日军炮击亨德森机场，守住海峡",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "日本海军前卫部队（阿部）",
+          "objective": "突入铁底湾炮击机场，击破美舰拦截",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.4
+        }
+      },
+      "ships": [
+        {
+          "id": "hiei",
+          "name": "比叡",
+          "class": "Kongo",
+          "side": "AXIS",
+          "lat": -9.1,
+          "lon": 159.72,
+          "heading": 160,
+          "speed": 18,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "kirishima",
+          "name": "雾岛",
+          "class": "Kongo",
+          "side": "AXIS",
+          "lat": -9.09235,
+          "lon": 159.7172,
+          "heading": 160,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "nagara",
+          "name": "长良",
+          "class": "Tenryu",
+          "side": "AXIS",
+          "lat": -9.0847,
+          "lon": 159.7144,
+          "heading": 160,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "实际为长良级轻巡；以天龙级数据近似"
+        },
+        {
+          "id": "akatsuki",
+          "name": "晓",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": -9.0779,
+          "lon": 159.71191,
+          "heading": 160,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "teruzuki",
+          "name": "照月",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -9.0711,
+          "lon": 159.70942,
+          "heading": 160,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "实际为秋月级防空驱逐舰；以阳炎级数据近似"
+        },
+        {
+          "id": "yukikaze",
+          "name": "雪风",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -9.0643,
+          "lon": 159.70693,
+          "heading": 160,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "amatsukaze",
+          "name": "天津风",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -9.0575,
+          "lon": 159.70444,
+          "heading": 160,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "yudachi",
+          "name": "夕立",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -9.0507,
+          "lon": 159.70195,
+          "heading": 160,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "实际为白露型；以阳炎级数据近似"
+        },
+        {
+          "id": "asagumo",
+          "name": "朝云",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": -9.0439,
+          "lon": 159.69946,
+          "heading": 160,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "实际为朝潮型；以吹雪级数据近似"
+        },
+        {
+          "id": "san_francisco",
+          "name": "旧金山",
+          "class": "NewOrleans",
+          "side": "ALLIED",
+          "lat": -9.2,
+          "lon": 159.88,
+          "heading": 310,
+          "speed": 18,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "portland",
+          "name": "波特兰",
+          "class": "Portland",
+          "side": "ALLIED",
+          "lat": -9.20523,
+          "lon": 159.88627,
+          "heading": 310,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "atlanta",
+          "name": "亚特兰大",
+          "class": "Atlanta",
+          "side": "ALLIED",
+          "lat": -9.21046,
+          "lon": 159.89254,
+          "heading": 310,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "juneau",
+          "name": "朱诺",
+          "class": "Atlanta",
+          "side": "ALLIED",
+          "lat": -9.21569,
+          "lon": 159.89881,
+          "heading": 310,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "helena",
+          "name": "海伦娜",
+          "class": "Brooklyn",
+          "side": "ALLIED",
+          "lat": -9.22092,
+          "lon": 159.90508,
+          "heading": 310,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "cushing",
+          "name": "库欣",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.22499,
+          "lon": 159.90996,
+          "heading": 310,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "实际为马汉级"
+        },
+        {
+          "id": "laffey",
+          "name": "拉菲",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.22906,
+          "lon": 159.91484,
+          "heading": 310,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "实际为本森级"
+        },
+        {
+          "id": "obannon",
+          "name": "奥班农",
+          "class": "Fletcher",
+          "side": "ALLIED",
+          "lat": -9.23313,
+          "lon": 159.91972,
+          "heading": 310,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "sterett",
+          "name": "斯特雷特",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.2372,
+          "lon": 159.9246,
+          "heading": 310,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "实际为本汉姆级"
+        },
+        {
+          "id": "monssen",
+          "name": "蒙森",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.24127,
+          "lon": 159.92948,
+          "heading": 310,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "实际为西姆斯级"
+        },
+        {
+          "id": "aaron_ward",
+          "name": "阿伦·沃德",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": -9.24534,
+          "lon": 159.93436,
+          "heading": 310,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "实际为利弗莫尔级"
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SURVIVE",
+            "seconds": 7200
+          },
+          "result": "ALLIED",
+          "text": "守住水道，日军炮击机场企图失败"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_COUNT",
+            "n": 3
+          },
+          "result": "AXIS",
+          "text": "击沉 3 艘以上美舰后突入炮击阵位"
+        }
+      ],
+      "_requiredClasses": [
+        "Atlanta",
+        "Bagley",
+        "Brooklyn",
+        "Fletcher",
+        "Fubuki",
+        "Kagero",
+        "Kongo",
+        "NewOrleans",
+        "Portland",
+        "Tenryu"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地01:48（1942-11-12T15:05:00Z）为开局，史实依据：1942-11-13 当地 01:48 卡拉汉分队与阿部分队在铁底湾黑暗中相撞（史实 0148 开火）。"
+    },
+    {
+      "id": "surigao_strait_1944",
+      "nameZh": "苏里高海峡夜战",
+      "date": "1944-10-25",
+      "place": "菲律宾苏里高海峡（棉兰老海北口—莱特湾）",
+      "historicalNote": "1944 年 10 月 25 日凌晨（当地 25 日 03:21，即 1944-10-24T19:00Z，本剧本开局时刻；史实夜战窗口 02:00–04:19），西村祥治中将率战列舰 Yamashiro、Fuso 与航空巡洋舰 Mogami、驱逐舰 4 艘，自棉兰老海北上强行突入苏里高海峡，欲与莱特湾的栗田舰队会合。美军奥尔登多夫少将早有准备：39 艘 PT 艇、28 艘驱逐舰与 6 艘战列舰、8 艘巡洋舰在 20 多海里长的海峡里层层设伏。0250 起美军驱逐舰分队在雷达引导下发起扇面鱼雷攻击，Fuso 中雷解体沉没，3 艘驱逐舰被击沉；0353 战列舰编队在 15,000–20,000 码上以雷达射击（West Virginia 首次齐射即命中），Yamashiro 在 20 余发 14/16 英寸弹下于 0419 沉没，西村阵亡；Mogami 重创后于次日自沉，驱逐舰 Shigure 成为该分队唯一生还者。这是史上最后一次“T 字横头”式战列舰炮战。",
+      "start": {
+        "lat": 9.8,
+        "lon": 125.3,
+        "date": "1944-10-24T19:00:00Z",
+        "env": {
+          "windKn": 6,
+          "windDirDeg": 200,
+          "visibilityNm": 7,
+          "cloudCover": 0.85,
+          "seaState": 3
+        }
+      },
+      "env": {
+        "windKn": 6,
+        "windDirDeg": 200,
+        "visibilityNm": 7,
+        "cloudCover": 0.85,
+        "seaState": 3
+      },
+      "_oobNote": "标准型战列舰：西弗吉尼亚/马里兰→Colorado（史实同级）；田纳西/加利福尼亚/宾夕法尼亚/密西西比在冻结舰级表中无对应级，一并以下述 Colorado 近似（同为 14 英寸主炮标准型战列舰）。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "美国第 7 舰队支援群（奥尔登多夫）",
+          "objective": "以雷击与战列线歼灭突入的日军分队",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "日本海军第 1 游击部队（西村）",
+          "objective": "强行突入莱特湾，与栗田舰队会合",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.5
+        }
+      },
+      "ships": [
+        {
+          "id": "yamashiro",
+          "name": "山城",
+          "class": "Fuso",
+          "side": "AXIS",
+          "lat": 9.95,
+          "lon": 125.3,
+          "heading": 5,
+          "speed": 18,
+          "role": "flagship",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "fuso",
+          "name": "扶桑",
+          "class": "Fuso",
+          "side": "AXIS",
+          "lat": 9.93919,
+          "lon": 125.29905,
+          "heading": 5,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "mogami",
+          "name": "最上",
+          "class": "Mogami",
+          "side": "AXIS",
+          "lat": 9.92838,
+          "lon": 125.2981,
+          "heading": 5,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "shigure",
+          "name": "时雨",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": 9.91937,
+          "lon": 125.29731,
+          "heading": 5,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "实际为白露型；以阳炎级数据近似"
+        },
+        {
+          "id": "michishio",
+          "name": "满潮",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 9.91036,
+          "lon": 125.29652,
+          "heading": 5,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "yamagumo",
+          "name": "山云",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 9.90135,
+          "lon": 125.29573,
+          "heading": 5,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "asagumo",
+          "name": "朝云",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 9.89234,
+          "lon": 125.29494,
+          "heading": 5,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "west_virginia",
+          "name": "西弗吉尼亚",
+          "class": "Colorado",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.24,
+          "heading": 90,
+          "speed": 15,
+          "role": "flagship",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "tennessee",
+          "name": "田纳西",
+          "class": "Colorado",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.23179,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "史实田纳西级；以 Colorado 级数据近似"
+        },
+        {
+          "id": "california",
+          "name": "加利福尼亚",
+          "class": "Colorado",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.22358,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "史实田纳西级；以 Colorado 级数据近似"
+        },
+        {
+          "id": "maryland",
+          "name": "马里兰",
+          "class": "Colorado",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.21537,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "pennsylvania",
+          "name": "宾夕法尼亚",
+          "class": "Colorado",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.20716,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "史实宾夕法尼亚级；以 Colorado 级数据近似"
+        },
+        {
+          "id": "mississippi",
+          "name": "密西西比",
+          "class": "Colorado",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.19895,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "史实新墨西哥级；以 Colorado 级数据近似"
+        },
+        {
+          "id": "louisville",
+          "name": "路易斯维尔",
+          "class": "Northampton",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.18526,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "portland_s",
+          "name": "波特兰",
+          "class": "Portland",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.17431,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "columbia",
+          "name": "哥伦比亚",
+          "class": "Brooklyn",
+          "side": "ALLIED",
+          "lat": 10.22,
+          "lon": 125.16336,
+          "heading": 90,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "melvin",
+          "name": "梅尔文",
+          "class": "Fletcher",
+          "side": "ALLIED",
+          "lat": 10.05,
+          "lon": 125.36,
+          "heading": 175,
+          "speed": 25,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "remey",
+          "name": "雷米",
+          "class": "Fletcher",
+          "side": "ALLIED",
+          "lat": 10.05,
+          "lon": 125.37368,
+          "heading": 175,
+          "speed": 25,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "mcgovan",
+          "name": "麦高恩",
+          "class": "Fletcher",
+          "side": "ALLIED",
+          "lat": 10.05,
+          "lon": 125.38736,
+          "heading": 175,
+          "speed": 25,
+          "role": "screen",
+          "crewQuality": 1
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK",
+            "shipIds": [
+              "yamashiro",
+              "fuso"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "击沉两艘扶桑级战列舰，封闭海峡"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "EXIT",
+            "area": {
+              "x": 11000,
+              "y": 122000,
+              "r": 8000
+            },
+            "any": true
+          },
+          "result": "AXIS",
+          "text": "突入莱特湾与栗田舰队会合"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_COUNT",
+            "n": 3
+          },
+          "result": "AXIS",
+          "text": "击沉 3 艘以上美舰，撕开海峡封锁"
+        }
+      ],
+      "_requiredClasses": [
+        "Brooklyn",
+        "Colorado",
+        "Fletcher",
+        "Fubuki",
+        "Fuso",
+        "Kagero",
+        "Mogami",
+        "Northampton",
+        "Portland"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 03:21（时差 +8.35 h）。"
+    },
+    {
+      "id": "north_cape_1943",
+      "nameZh": "北角海战",
+      "date": "1943-12-26",
+      "place": "挪威北角以北的巴伦支海（约 72°20′N 28°30′E）",
+      "historicalNote": "1943 年 12 月 26 日当地 16:30（1943-12-26T14:36Z）开局，德国海军少将贝率 Scharnhorst 出击，企图截杀驶往苏联的 JW 55B 护航队（其 5 艘驱逐舰在当天上午已被遣返，故本剧本仅保留 3 艘作为可选兵力）。英国本土舰队司令弗雷泽上将亲率战列舰 Duke of York 及轻巡 Belfast、Sheffield、Norfolk、Jamaica 与 8 艘驱逐舰掩护。极夜与 8 级风暴中，Belfast 的 273 型雷达先行发现德舰；Norfolk、Sheffield 与 Scharnhorst 交手并命中其雷达天线。弗雷泽以护航队为诱饵把 Scharnhorst 引向东南，1652 Duke of York 在雷达引导下于约 12,000 码开火，命中锅炉与炮塔；随后英驱逐舰以鱼雷两次命中，Scharnhorst 航速降至 22 节。1901 起英舰抵近射击，1945 Scharnhorst 爆炸沉没，1968 人仅 36 人生还。这是英德水面舰艇最后一次交战。",
+      "start": {
+        "lat": 72.3,
+        "lon": 28.5,
+        "date": "1943-12-26T14:36:00Z",
+        "env": {
+          "windKn": 30,
+          "windDirDeg": 220,
+          "visibilityNm": 6,
+          "cloudCover": 1,
+          "seaState": 6
+        }
+      },
+      "env": {
+        "windKn": 30,
+        "windDirDeg": 220,
+        "visibilityNm": 6,
+        "cloudCover": 1,
+        "seaState": 6
+      },
+      "_oobNote": "德方 Z 驱无对应舰级，以 Leipzig 近似（历史上已于接战前被遣返，可视为可选兵力）；英方 Duke of York→KingGeorgeV，Belfast/Sheffield/Jamaica→Town，Norfolk→County，驱逐舰→Tribal。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "英国本土舰队（弗雷泽）",
+          "objective": "以雷达与战列线截杀 Scharnhorst，保住护航队",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "德国海军（贝分队）",
+          "objective": "击破巡洋舰掩护，突入护航队航线",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.45
+        }
+      },
+      "ships": [
+        {
+          "id": "scharnhorst",
+          "name": "沙恩霍斯特",
+          "class": "Scharnhorst",
+          "side": "AXIS",
+          "lat": 72.4,
+          "lon": 28.8,
+          "heading": 200,
+          "speed": 26,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "z29",
+          "name": "Z29",
+          "class": "Leipzig",
+          "side": "AXIS",
+          "lat": 72.41263,
+          "lon": 28.8152,
+          "heading": 200,
+          "speed": 26,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "史实为 1936A 型驱逐舰；此处以 Leipzig 级近似"
+        },
+        {
+          "id": "z30",
+          "name": "Z30",
+          "class": "Leipzig",
+          "side": "AXIS",
+          "lat": 72.40895,
+          "lon": 28.84862,
+          "heading": 200,
+          "speed": 26,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "同上近似"
+        },
+        {
+          "id": "z33",
+          "name": "Z33",
+          "class": "Leipzig",
+          "side": "AXIS",
+          "lat": 72.41631,
+          "lon": 28.78178,
+          "heading": 200,
+          "speed": 26,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "同上近似"
+        },
+        {
+          "id": "duke_of_york",
+          "name": "约克公爵",
+          "class": "KingGeorgeV",
+          "side": "ALLIED",
+          "lat": 72.2,
+          "lon": 28.3,
+          "heading": 45,
+          "speed": 24,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "belfast",
+          "name": "贝尔法斯特",
+          "class": "Town",
+          "side": "ALLIED",
+          "lat": 72.18986,
+          "lon": 28.26685,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1.15,
+          "note": "装有 273 型雷达，本役首开雷达引导射击"
+        },
+        {
+          "id": "sheffield",
+          "name": "谢菲尔德",
+          "class": "Town",
+          "side": "ALLIED",
+          "lat": 72.18226,
+          "lon": 28.242,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "norfolk",
+          "name": "诺福克",
+          "class": "County",
+          "side": "ALLIED",
+          "lat": 72.17466,
+          "lon": 28.21716,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "jamaica",
+          "name": "牙买加",
+          "class": "Town",
+          "side": "ALLIED",
+          "lat": 72.16706,
+          "lon": 28.19234,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "实际为斐济级；以城级数据近似"
+        },
+        {
+          "id": "savage",
+          "name": "萨维奇",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 72.21584,
+          "lon": 28.35179,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "saumarez",
+          "name": "索马雷斯",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 72.21584,
+          "lon": 28.37232,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "scorpion",
+          "name": "蝎子",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 72.21584,
+          "lon": 28.33126,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "stord",
+          "name": "斯托德（挪威）",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 72.21584,
+          "lon": 28.39285,
+          "heading": 45,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "实际为 S 级；以部族级数据近似"
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK",
+            "shipIds": [
+              "scharnhorst"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "击沉 Scharnhorst，护航队安全"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "belfast",
+              "norfolk",
+              "sheffield",
+              "jamaica"
+            ]
+          },
+          "result": "AXIS",
+          "text": "击破巡洋舰掩护，打开通往护航队的航路"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SURVIVE",
+            "seconds": 10800
+          },
+          "result": "ALLIED",
+          "text": "护航队通过（Scharnhorst 被迫撤离）"
+        }
+      ],
+      "_requiredClasses": [
+        "County",
+        "KingGeorgeV",
+        "Leipzig",
+        "Scharnhorst",
+        "Town",
+        "Tribal"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地16:30（1943-12-26T14:36:00Z）为开局，史实依据：1943-12-26 当地 16:30 约克公爵号雷达锁定并开始主炮交战（史实 1652 开火，1945 沉没）。"
+    },
+    {
+      "id": "java_sea_1942",
+      "nameZh": "爪哇海海战",
+      "date": "1942-02-27",
+      "place": "爪哇海（泗水以北，约 6°S 112°30′E）",
+      "historicalNote": "1942 年 2 月 27 日下午（当地 16:16 首次发现，即 09:16 UTC；本剧本开局取 1942-02-27T09:30Z／当地 17:00），杜尔曼少将率 ABDA 联合舰队出海拦截掩护爪哇登陆的日本舰队。本剧本保留了双方实际参战的可用舰只：盟军以重巡 Houston、重巡 Exeter、轻巡 Perth 及 E 级驱逐舰 Electra、Jupiter、Encounter 对抗日军第 2 舰队（重巡 Nachi、Haguro，轻巡 Jintsu 及第 4、第 2 水雷战队驱逐舰）。混战持续 7 小时，日军以九三式氧气鱼雷在黄昏后连续击沉 Kortenaer、Jupiter（触雷）、De Ruyter 与 Java（后二者于当夜被击沉，杜尔曼阵亡），Exeter 重伤后与 Encounter、Pope 于次日被歼灭。日军仅 1 艘运输船受创；ABDA 舰队事实上覆灭，爪哇随后陷落。此役是二战规模最大的水面舰艇纯炮雷战之一。",
+      "start": {
+        "lat": -6.1,
+        "lon": 112.6,
+        "date": "1942-02-27T09:30:00Z",
+        "env": {
+          "windKn": 6,
+          "windDirDeg": 315,
+          "visibilityNm": 14,
+          "cloudCover": 0.5,
+          "seaState": 2
+        }
+      },
+      "env": {
+        "windKn": 6,
+        "windDirDeg": 315,
+        "visibilityNm": 14,
+        "cloudCover": 0.5,
+        "seaState": 2
+      },
+      "_oobNote": "荷兰舰只（De Ruyter/Java/Tromp/Kortenaer 等）在冻结舰级表中无对应级，故以史实同在阵中的 Houston/Exeter/Perth 及澳英 E 级驱逐舰代表 ABDA 主力；其缺席不影响本役“烟幕+鱼雷夜战”的核心过程。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "ABDA 联合舰队（杜尔曼）",
+          "objective": "阻止日军登陆爪哇，击破掩护舰队",
+          "orderDelay_s": 10,
+          "withdrawThreshold": 0.25
+        },
+        "AXIS": {
+          "nameZh": "日本海军第 2 舰队（高木/田中）",
+          "objective": "掩护登陆船团，歼灭 ABDA 舰队",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.4
+        }
+      },
+      "ships": [
+        {
+          "id": "houston",
+          "name": "休斯顿",
+          "class": "Northampton",
+          "side": "ALLIED",
+          "lat": -6.22,
+          "lon": 112.48,
+          "heading": 350,
+          "speed": 18,
+          "role": "flagship",
+          "crewQuality": 0.85,
+          "note": "历史旗舰为荷舰 De Ruyter，该级未建模"
+        },
+        {
+          "id": "exeter",
+          "name": "埃克塞特",
+          "class": "York",
+          "side": "ALLIED",
+          "lat": -6.22801,
+          "lon": 112.48141,
+          "heading": 350,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "perth",
+          "name": "珀斯",
+          "class": "Leander",
+          "side": "ALLIED",
+          "lat": -6.23602,
+          "lon": 112.48282,
+          "heading": 350,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "electra",
+          "name": "伊莱克特拉",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": -6.20721,
+          "lon": 112.49278,
+          "heading": 350,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "E 级驱逐舰，以部族级数据近似"
+        },
+        {
+          "id": "jupiter",
+          "name": "朱庇特",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": -6.20721,
+          "lon": 112.50001,
+          "heading": 350,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "E 级驱逐舰，以部族级数据近似"
+        },
+        {
+          "id": "encounter",
+          "name": "遭遇",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": -6.20721,
+          "lon": 112.46722,
+          "heading": 350,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "E 级驱逐舰，以部族级数据近似"
+        },
+        {
+          "id": "nachi",
+          "name": "那智",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": -6.08,
+          "lon": 112.6,
+          "heading": 190,
+          "speed": 24,
+          "role": "flagship",
+          "crewQuality": 1.15,
+          "note": "妙高级，以高雄级数据近似"
+        },
+        {
+          "id": "haguro",
+          "name": "羽黑",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": -6.07199,
+          "lon": 112.60141,
+          "heading": 190,
+          "speed": 24,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "妙高级，以高雄级数据近似"
+        },
+        {
+          "id": "jintsu",
+          "name": "神通",
+          "class": "Tenryu",
+          "side": "AXIS",
+          "lat": -6.01,
+          "lon": 112.47,
+          "heading": 190,
+          "speed": 24,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "实际为长良级/神通级轻巡；以天龙级近似"
+        },
+        {
+          "id": "yukikaze",
+          "name": "雪风",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -6.00859,
+          "lon": 112.46199,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "amatsukaze",
+          "name": "天津风",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -6.00191,
+          "lon": 112.46317,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "yudachi",
+          "name": "夕立",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": -5.99523,
+          "lon": 112.46435,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "白露型，以阳炎级近似"
+        },
+        {
+          "id": "minegumo",
+          "name": "峰云",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": -6.01141,
+          "lon": 112.47801,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "朝潮型，以吹雪级近似"
+        },
+        {
+          "id": "asagumo",
+          "name": "朝云",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": -6.00473,
+          "lon": 112.47919,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "朝潮型，以吹雪级近似"
+        },
+        {
+          "id": "ushio",
+          "name": "潮",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": -5.99805,
+          "lon": 112.48037,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "sazanami",
+          "name": "涟",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": -5.99137,
+          "lon": 112.48155,
+          "heading": 190,
+          "speed": 24,
+          "role": "screen",
+          "crewQuality": 0.85
+        }
+      ],
+      "objectives": [
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_COUNT",
+            "n": 3
+          },
+          "result": "AXIS",
+          "text": "击沉 3 艘以上盟军舰艇，登陆掩护成功"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "nachi",
+              "haguro",
+              "jintsu"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "击沉日军主力巡洋舰，迫使其登陆编队折返"
+        }
+      ],
+      "_requiredClasses": [
+        "Fubuki",
+        "Kagero",
+        "Leander",
+        "Northampton",
+        "Takao",
+        "Tenryu",
+        "Tribal",
+        "York"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 17:00（时差 +7.51 h）。"
+    },
+    {
+      "id": "matapan_1941",
+      "nameZh": "马塔潘角海战",
+      "date": "1941-03-28",
+      "place": "希腊马塔潘角以南（约 35°30′N 21°30′E）",
+      "historicalNote": "1941 年 3 月 28 日，意大利海军上将亚基诺率战列舰 Vittorio Veneto 及第 1、第 3 巡洋舰分队出击东地中海，被坎宁安上将的皇家海军地中海舰队截击。上午交火中 Vittorio Veneto 被空投鱼雷命中而撤退（本模拟不含航空兵交战，故该伤情在剧本中以低乘员素质与撤退目标体现）。当夜 2227（本地时间），英战列舰 Warspite、Valiant、Barham 在无月黑夜以雷达引导逼近，探照灯突然照亮意第 1 巡洋舰分队（Zara、Fiume、Pola、Gorizia），在 2,500–3,000 米距离上以 381 mm 主炮抵近射击，Fiume、Zara 在 5 分钟内被摧毁，Pola 被英驱逐舰鱼雷击沉；两艘意驱逐舰战死（意大利驱逐舰级未建模，故省略）。此役意军阵亡 2,303 人，英军仅损失 1 架舰载机，是地中海战场英军的决定性夜战胜利。",
+      "start": {
+        "lat": 35.55,
+        "lon": 21.5,
+        "date": "1941-03-28T21:00:00Z",
+        "env": {
+          "windKn": 8,
+          "windDirDeg": 320,
+          "visibilityNm": 5,
+          "cloudCover": 0.6,
+          "seaState": 3
+        }
+      },
+      "env": {
+        "windKn": 8,
+        "windDirDeg": 320,
+        "visibilityNm": 5,
+        "cloudCover": 0.6,
+        "seaState": 3
+      },
+      "_oobNote": "意方 Fiume/Pola/Gorizia→Zara（同级）；Vittorio Veneto→VittorioVeneto；意大利驱逐舰级与英航母 Formidable 未建模故省略。Gorizia 当夜实际未随第 1 分队同行，为增加可玩性保留。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "英国地中海舰队（坎宁安）",
+          "objective": "歼灭意巡洋舰分队，粉碎其东地中海出击",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "意大利皇家海军（亚基诺）",
+          "objective": "保存舰队，掩护 Vittorio Veneto 撤回塔兰托",
+          "orderDelay_s": 10,
+          "withdrawThreshold": 0.3
+        }
+      },
+      "ships": [
+        {
+          "id": "warspite",
+          "name": "厌战",
+          "class": "QueenElizabeth",
+          "side": "ALLIED",
+          "lat": 35.55,
+          "lon": 21.4,
+          "heading": 270,
+          "speed": 20,
+          "role": "flagship",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "valiant",
+          "name": "勇士",
+          "class": "QueenElizabeth",
+          "side": "ALLIED",
+          "lat": 35.55,
+          "lon": 21.40993,
+          "heading": 270,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "barham",
+          "name": "巴勒姆",
+          "class": "QueenElizabeth",
+          "side": "ALLIED",
+          "lat": 35.55,
+          "lon": 21.41986,
+          "heading": 270,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "jervis",
+          "name": "杰维斯",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 35.56147,
+          "lon": 21.41404,
+          "heading": 270,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "J 级驱逐舰领舰，以部族级数据近似"
+        },
+        {
+          "id": "janus",
+          "name": "雅努斯",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 35.56147,
+          "lon": 21.42176,
+          "heading": 270,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "J 级，以部族级近似"
+        },
+        {
+          "id": "nubian",
+          "name": "努比亚",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 35.56147,
+          "lon": 21.40632,
+          "heading": 270,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 1
+        },
+        {
+          "id": "stuart",
+          "name": "斯图尔特（澳）",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 35.56147,
+          "lon": 21.42948,
+          "heading": 270,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 1,
+          "note": "澳皇家海军 V/W 级，以部族级近似"
+        },
+        {
+          "id": "greyhound",
+          "name": "灰狗",
+          "class": "Tribal",
+          "side": "ALLIED",
+          "lat": 35.56147,
+          "lon": 21.3986,
+          "heading": 270,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "G 级，以部族级近似"
+        },
+        {
+          "id": "zara",
+          "name": "扎拉",
+          "class": "Zara",
+          "side": "AXIS",
+          "lat": 35.55,
+          "lon": 21.6,
+          "heading": 85,
+          "speed": 16,
+          "role": "flagship",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "fiume",
+          "name": "菲乌梅",
+          "class": "Zara",
+          "side": "AXIS",
+          "lat": 35.54937,
+          "lon": 21.59121,
+          "heading": 85,
+          "speed": 16,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "pola",
+          "name": "波拉",
+          "class": "Zara",
+          "side": "AXIS",
+          "lat": 35.54874,
+          "lon": 21.58242,
+          "heading": 85,
+          "speed": 16,
+          "role": "line",
+          "crewQuality": 0.85,
+          "note": "历史上此前已被空投鱼雷命中失去动力，此处按可机动处理"
+        },
+        {
+          "id": "gorizia",
+          "name": "戈里齐亚",
+          "class": "Zara",
+          "side": "AXIS",
+          "lat": 35.54811,
+          "lon": 21.57363,
+          "heading": 85,
+          "speed": 16,
+          "role": "line",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "vittorio_veneto",
+          "name": "维托里奥·维内托",
+          "class": "VittorioVeneto",
+          "side": "AXIS",
+          "lat": 35.95,
+          "lon": 20.6,
+          "heading": 70,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 0.85,
+          "note": "当日上午已被空投鱼雷命中，本役主要任务为撤离"
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "zara",
+              "fiume",
+              "pola"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "夜战中歼灭意巡洋舰分队"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "EXIT",
+            "area": {
+              "x": -120000,
+              "y": 66000,
+              "r": 12000
+            },
+            "any": true
+          },
+          "result": "AXIS",
+          "text": "主力（含 Vittorio Veneto）撤回塔兰托方向"
+        }
+      ],
+      "_requiredClasses": [
+        "QueenElizabeth",
+        "Tribal",
+        "VittorioVeneto",
+        "Zara"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 22:26（时差 +1.43 h）。"
+    },
+    {
+      "id": "komandorski_1943",
+      "nameZh": "科曼多尔群岛海战",
+      "date": "1943-03-26",
+      "place": "北太平洋，阿留申群岛以西、科曼多尔群岛以南（约 53°N 169°E）",
+      "historicalNote": "1943 年 3 月 26 日（当地 08:30，即 1943-03-25T21:15Z（本剧本开局时刻）），细萱戊子郎中将率重巡 Nachi、Haguro、Maya，轻巡 Abukuma 及 4 艘驱逐舰护送驶往阿图岛的运输船团，与麦克莫里斯少将的美国第 16.6 特混舰队（重巡 Salt Lake City、轻巡 Richmond、驱逐舰 Bailey、Coghlan、Dale、Monaghan）在阿留申以西海域相遇。美舰以雷达与烟雾掩护，在 08:40 后于 18,000–20,000 码上与日舰周旋 3 小时；Salt Lake City 中弹进水、一度几乎失速，但美驱逐舰的鱼雷攻击迫使日舰规避。细萱因担心遭遇美岸基航空兵而主动撤退，运输船团放弃对阿图岛的补给——美军以绝对劣势兵力达成战略目标。这是二战中罕见的美日巡洋舰纯炮战，双方均无主力舰参战。",
+      "start": {
+        "lat": 53,
+        "lon": 169,
+        "date": "1943-03-25T21:15:00Z",
+        "env": {
+          "windKn": 15,
+          "windDirDeg": 250,
+          "visibilityNm": 20,
+          "cloudCover": 0.2,
+          "seaState": 4
+        }
+      },
+      "env": {
+        "windKn": 15,
+        "windDirDeg": 250,
+        "visibilityNm": 20,
+        "cloudCover": 0.2,
+        "seaState": 4
+      },
+      "_oobNote": "盐湖城→Pensacola；里士满（奥马哈级）→Brooklyn 近似；美驱逐舰（法拉格特级）→Bagley；日方妙高级→Takao，阿武隈→Tenryu，驱逐舰→Fubuki。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "美国第 16.6 特混舰队（麦克莫里斯）",
+          "objective": "截击日方运输船团，守住在阿图岛海域的海上优势",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "日本海军第 5 舰队（细萱）",
+          "objective": "掩护运输船团抵达阿图岛；不利时保存舰队",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.4
+        }
+      },
+      "ships": [
+        {
+          "id": "salt_lake_city",
+          "name": "盐湖城",
+          "class": "Pensacola",
+          "side": "ALLIED",
+          "lat": 53.18,
+          "lon": 168.88,
+          "heading": 270,
+          "speed": 15,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "richmond",
+          "name": "里士满",
+          "class": "Brooklyn",
+          "side": "ALLIED",
+          "lat": 53.18,
+          "lon": 168.89795,
+          "heading": 270,
+          "speed": 15,
+          "role": "line",
+          "crewQuality": 0.85,
+          "note": "实际为奥马哈级轻巡（6 英寸）；以布鲁克林级数据近似"
+        },
+        {
+          "id": "bailey",
+          "name": "贝利",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 53.19017,
+          "lon": 168.89692,
+          "heading": 270,
+          "speed": 15,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "法拉格特级，以 Bagley 近似"
+        },
+        {
+          "id": "coghlan",
+          "name": "科格伦",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 53.19017,
+          "lon": 168.90739,
+          "heading": 270,
+          "speed": 15,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "dale",
+          "name": "戴尔",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 53.19017,
+          "lon": 168.88645,
+          "heading": 270,
+          "speed": 15,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "monaghan",
+          "name": "莫纳汉",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 53.19017,
+          "lon": 168.91786,
+          "heading": 270,
+          "speed": 15,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "nachi",
+          "name": "那智",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": 53.23,
+          "lon": 169.12,
+          "heading": 110,
+          "speed": 16,
+          "role": "flagship",
+          "crewQuality": 1,
+          "note": "妙高级，以高雄级数据近似"
+        },
+        {
+          "id": "haguro",
+          "name": "羽黑",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": 53.23277,
+          "lon": 169.10734,
+          "heading": 110,
+          "speed": 16,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "妙高级，以高雄级数据近似"
+        },
+        {
+          "id": "maya",
+          "name": "摩耶",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": 53.23554,
+          "lon": 169.09467,
+          "heading": 110,
+          "speed": 16,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "abukuma",
+          "name": "阿武隈",
+          "class": "Tenryu",
+          "side": "AXIS",
+          "lat": 53.23861,
+          "lon": 169.0806,
+          "heading": 110,
+          "speed": 16,
+          "role": "line",
+          "crewQuality": 0.85,
+          "note": "长良级，以天龙级近似"
+        },
+        {
+          "id": "wakaba",
+          "name": "若叶",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 53.24168,
+          "lon": 169.06653,
+          "heading": 110,
+          "speed": 16,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "hatsushimo",
+          "name": "初霜",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 53.24383,
+          "lon": 169.05668,
+          "heading": 110,
+          "speed": 16,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "ikazuchi",
+          "name": "雷",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 53.24598,
+          "lon": 169.04683,
+          "heading": 110,
+          "speed": 16,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "inazuma",
+          "name": "电",
+          "class": "Fubuki",
+          "side": "AXIS",
+          "lat": 53.24813,
+          "lon": 169.03698,
+          "heading": 110,
+          "speed": 16,
+          "role": "screen",
+          "crewQuality": 0.85
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "nachi",
+              "haguro",
+              "maya"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "击沉日方重巡，运输船团被迫折返"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "DISABLE",
+            "shipIds": [
+              "nachi"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "重创细萱旗舰，迫其放弃护航任务"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "EXIT",
+            "area": {
+              "x": 0,
+              "y": 66600,
+              "r": 10000
+            },
+            "any": true
+          },
+          "result": "AXIS",
+          "text": "运输船团安全抵达阿图岛（向北突破）"
+        }
+      ],
+      "_requiredClasses": [
+        "Bagley",
+        "Brooklyn",
+        "Fubuki",
+        "Pensacola",
+        "Takao",
+        "Tenryu"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地08:30（1943-03-25T21:15:00Z）为开局，史实依据：1943-03-26 当地 08:30 麦克莫里斯分队与细萱护送队遭遇（史实 0830 首次目视接触）。"
+    },
+    {
+      "id": "casablanca_1942",
+      "nameZh": "卡萨布兰卡海战",
+      "date": "1942-11-08",
+      "place": "法属摩洛哥卡萨布兰卡港外（约 33°35′N 7°40′W）",
+      "historicalNote": "1942 年 11 月 8 日，盟军实施“火炬行动”登陆北非。休伊特少将的美国第 34 特混舰队（战列舰 Massachusetts、重巡 Wichita、Tuscaloosa、航母 Ranger 及驱逐舰）掩护登陆，与维希法国海军发生激烈交火。未完工但已装 4 门 380 mm 主炮的 Jean Bart 停泊在卡萨布兰卡防波堤内，以单座炮塔还击；Massachusetts 于 08:04 起与 Jean Bart、El Hank 岸炮对射，命中 Jean Bart 5 发 16 英寸弹使其炮塔卡死。法轻巡 Primauguet 与大型驱逐舰出港反击，遭美舰与舰载机压制，Primauguet、Boulonnais、Brestois、Fougueux、Frondeur 被击沉或搁浅。美军损失 4 艘登陆艇与 1 艘驱逐舰重创；法国海军阵亡约 500 人。此后法国非洲部队倒向盟军。本模拟不含航空兵与岸炮，故 Ranger 与 El Hank 炮台不参与交火。",
+      "start": {
+        "lat": 33.65,
+        "lon": -7.6,
+        "date": "1942-11-08T07:30:00Z",
+        "env": {
+          "windKn": 8,
+          "windDirDeg": 200,
+          "visibilityNm": 12,
+          "cloudCover": 0.3,
+          "seaState": 3
+        }
+      },
+      "env": {
+        "windKn": 8,
+        "windDirDeg": 200,
+        "visibilityNm": 12,
+        "cloudCover": 0.3,
+        "seaState": 3
+      },
+      "_oobNote": "美方：马萨诸塞→SouthDakota，Wichita→Pensacola 近似，Tuscaloosa→NewOrleans，驱逐舰→Bagley。法方：Jean Bart→JeanBart；Primauguet→Brooklyn 近似（同为 6 英寸轻巡）；维希大型驱逐舰→Fletcher（大型）/Bagley（小型）近似。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "美国第 34 特混舰队（休伊特）",
+          "objective": "压制维希法军海上力量，保障登陆",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "维希法国海军（卡萨布兰卡）",
+          "objective": "抵抗盟军登陆，守住港口与 Jean Bart",
+          "orderDelay_s": 12,
+          "withdrawThreshold": 0.35
+        }
+      },
+      "ships": [
+        {
+          "id": "massachusetts",
+          "name": "马萨诸塞",
+          "class": "SouthDakota",
+          "side": "ALLIED",
+          "lat": 33.76,
+          "lon": -7.8,
+          "heading": 110,
+          "speed": 20,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "wichita",
+          "name": "威奇托",
+          "class": "Pensacola",
+          "side": "ALLIED",
+          "lat": 33.7637,
+          "lon": -7.81217,
+          "heading": 110,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 1,
+          "note": "实际为威奇托级；以彭萨科拉级数据近似"
+        },
+        {
+          "id": "tuscaloosa",
+          "name": "塔斯卡卢萨",
+          "class": "NewOrleans",
+          "side": "ALLIED",
+          "lat": 33.7674,
+          "lon": -7.82434,
+          "heading": 110,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "gwin",
+          "name": "格温",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 33.77271,
+          "lon": -7.79446,
+          "heading": 110,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "利弗莫尔级，以 Bagley 近似"
+        },
+        {
+          "id": "bristol",
+          "name": "布里斯托尔",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 33.77055,
+          "lon": -7.78736,
+          "heading": 110,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "ellyson",
+          "name": "埃利森",
+          "class": "Bagley",
+          "side": "ALLIED",
+          "lat": 33.77487,
+          "lon": -7.80156,
+          "heading": 110,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "jean_bart",
+          "name": "让·巴尔",
+          "class": "JeanBart",
+          "side": "AXIS",
+          "lat": 33.605,
+          "lon": -7.585,
+          "heading": 30,
+          "speed": 0,
+          "role": "flagship",
+          "crewQuality": 0.65,
+          "note": "未完工，停泊于防波堤内，仅一座 380 mm 四联装炮塔可用；速度 0"
+        },
+        {
+          "id": "primauguet",
+          "name": "普里莫盖",
+          "class": "Brooklyn",
+          "side": "AXIS",
+          "lat": 33.63,
+          "lon": -7.7,
+          "heading": 300,
+          "speed": 18,
+          "role": "line",
+          "crewQuality": 0.85,
+          "note": "拉加利索尼埃级轻巡，以布鲁克林级数据近似"
+        },
+        {
+          "id": "milan",
+          "name": "米兰",
+          "class": "Fletcher",
+          "side": "AXIS",
+          "lat": 33.63547,
+          "lon": -7.69623,
+          "heading": 300,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "Aigle 级大型驱逐舰，以弗莱彻级近似"
+        },
+        {
+          "id": "albatros",
+          "name": "信天翁",
+          "class": "Fletcher",
+          "side": "AXIS",
+          "lat": 33.62453,
+          "lon": -7.70377,
+          "heading": 300,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "Aigle 级，以弗莱彻级近似"
+        },
+        {
+          "id": "boulonnais",
+          "name": "布洛奈",
+          "class": "Bagley",
+          "side": "AXIS",
+          "lat": 33.63908,
+          "lon": -7.7037,
+          "heading": 300,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "Adroit 级，以 Bagley 近似"
+        },
+        {
+          "id": "brestois",
+          "name": "布雷斯特",
+          "class": "Bagley",
+          "side": "AXIS",
+          "lat": 33.62814,
+          "lon": -7.71124,
+          "heading": 300,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "Adroit 级，以 Bagley 近似"
+        },
+        {
+          "id": "fougueux",
+          "name": "富格",
+          "class": "Bagley",
+          "side": "AXIS",
+          "lat": 33.64269,
+          "lon": -7.71117,
+          "heading": 300,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "Adroit 级，以 Bagley 近似"
+        },
+        {
+          "id": "frondeur",
+          "name": "投石手",
+          "class": "Bagley",
+          "side": "AXIS",
+          "lat": 33.63175,
+          "lon": -7.71871,
+          "heading": 300,
+          "speed": 18,
+          "role": "screen",
+          "crewQuality": 0.85,
+          "note": "Adroit 级，以 Bagley 近似"
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "DISABLE",
+            "shipIds": [
+              "jean_bart"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "让·巴尔被压制（历史结局：炮塔卡死、坐沉港内）"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "primauguet",
+              "milan",
+              "albatros"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "击沉出击的维希法军巡洋舰/驱逐舰"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_COUNT",
+            "n": 2
+          },
+          "result": "AXIS",
+          "text": "击沉 2 艘以上盟军舰艇，登陆被击退"
+        }
+      ],
+      "_requiredClasses": [
+        "Bagley",
+        "Brooklyn",
+        "Fletcher",
+        "JeanBart",
+        "NewOrleans",
+        "Pensacola",
+        "SouthDakota"
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照（本剧本经度对应的时差见下）。本剧本当地07:00（1942-11-08T07:30:00Z）为开局，史实依据：1942-11-08 当地 07:00 让·巴尔与美舰交火（当地日出 06:43，史实 07:00–08:04 炮战）。"
+    },
+    {
+      "id": "sandbox",
+      "nameZh": "沙盒演习",
+      "date": "1943-06-01",
+      "place": "北大西洋中部（约 30°N 40°W），无历史背景的自由对抗",
+      "historicalNote": "非历史剧本：为测试火控、损管、AI 与协议而设的自由对抗。双方各 4 舰，在约 15 海里上对进，不设历史约束；胜负仅在编队全灭时判定，也可作为外部智能体的联调试验场。",
+      "start": {
+        "lat": 30,
+        "lon": -40,
+        "date": "1943-06-01T12:00:00Z",
+        "env": {
+          "windKn": 12,
+          "windDirDeg": 250,
+          "visibilityNm": 15,
+          "cloudCover": 0.35,
+          "seaState": 4
+        }
+      },
+      "env": {
+        "windKn": 12,
+        "windDirDeg": 250,
+        "visibilityNm": 15,
+        "cloudCover": 0.35,
+        "seaState": 4
+      },
+      "_oobNote": "沙盒使用冻结舰级表中的代表舰：SouthDakota / NewOrleans / Fletcher 对 Kongo / Takao / Shimakaze / Kagero。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "同盟国特混分队",
+          "objective": "自由对抗：击灭对方编队",
+          "orderDelay_s": 4,
+          "withdrawThreshold": 0.2
+        },
+        "AXIS": {
+          "nameZh": "轴心国特混分队",
+          "objective": "自由对抗：击灭对方编队",
+          "orderDelay_s": 4,
+          "withdrawThreshold": 0.2
+        }
+      },
+      "ships": [
+        {
+          "id": "sandbox_sd",
+          "name": "南达科他",
+          "class": "SouthDakota",
+          "side": "ALLIED",
+          "lat": 30,
+          "lon": -40.14,
+          "heading": 90,
+          "speed": 20,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "sandbox_ca",
+          "name": "新奥尔良",
+          "class": "NewOrleans",
+          "side": "ALLIED",
+          "lat": 30,
+          "lon": -40.15244,
+          "heading": 90,
+          "speed": 20,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "sandbox_dd1",
+          "name": "弗莱彻",
+          "class": "Fletcher",
+          "side": "ALLIED",
+          "lat": 30.01276,
+          "lon": -40.12534,
+          "heading": 90,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "sandbox_dd2",
+          "name": "奥班农",
+          "class": "Fletcher",
+          "side": "ALLIED",
+          "lat": 30.01276,
+          "lon": -40.15466,
+          "heading": 90,
+          "speed": 20,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "sandbox_kongo",
+          "name": "金刚",
+          "class": "Kongo",
+          "side": "AXIS",
+          "lat": 30,
+          "lon": -39.86,
+          "heading": 270,
+          "speed": 22,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "sandbox_takao",
+          "name": "高雄",
+          "class": "Takao",
+          "side": "AXIS",
+          "lat": 30,
+          "lon": -39.84756,
+          "heading": 270,
+          "speed": 22,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "sandbox_dd3",
+          "name": "岛风",
+          "class": "Shimakaze",
+          "side": "AXIS",
+          "lat": 29.98724,
+          "lon": -39.87466,
+          "heading": 270,
+          "speed": 22,
+          "role": "screen",
+          "crewQuality": 0.85
+        },
+        {
+          "id": "sandbox_dd4",
+          "name": "雪风",
+          "class": "Kagero",
+          "side": "AXIS",
+          "lat": 29.98724,
+          "lon": -39.84534,
+          "heading": 270,
+          "speed": 22,
+          "role": "screen",
+          "crewQuality": 1.15
+        }
+      ],
+      "objectives": [],
+      "_requiredClasses": [
+        "Fletcher",
+        "Kagero",
+        "Kongo",
+        "NewOrleans",
+        "Shimakaze",
+        "SouthDakota",
+        "Takao"
+      ],
+      "sandbox": true,
+  "sandboxNoVictory": true,
+  "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 09:20（时差 -2.67 h）。"
+    }
+  ]
+}

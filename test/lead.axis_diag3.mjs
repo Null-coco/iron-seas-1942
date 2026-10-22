@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'denmark_strait_1941');
+const w = new World({ scenario: sc, database: db, seed: 1003, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: j('data/land.json'), depthData: j('data/depth.json') });
+for (const s of ['ALLIED', 'AXIS']) w.ai[s].autoCommand = true;
+const hitsOn = {};
+w.events.on('gun.hit', (e) => { if (e.targetShipId) hitsOn[e.targetShipId] = (hitsOn[e.targetShipId] || 0) + 1; });
+w.advance(700);
+const ai = w.ai['AXIS'].local || w.ai['AXIS'];
+const pic = ai.picture(w, w.afloatOf('AXIS'));
+console.log('轴心视角航迹: ' + JSON.stringify(pic.map((e) => ({ id: e.tr.id, cls: e.classifiedAs, targetId: e.tr.targetId || e.tr.targetShipId || null, km: Math.round(e.rangeM / 1000) })).slice(0, 6)));
+console.log('轴心各舰当前目标: ' + JSON.stringify(w.afloatOf('AXIS').map((s) => ({ n: s.name, tgt: s.commanded.targetTrackId, firing: !!s.commanded.firing }))));
+console.log('焦点航迹: ' + ai.fleet.focusTrackId + ' 阶段 ' + ai.fleet.phase);
+console.log('英舰被命中: ' + JSON.stringify(hitsOn));
+console.log('isObjectiveTarget 测试: ' + pic.map((e) => ai.isObjectiveTarget(w, e.tr)).join(','));

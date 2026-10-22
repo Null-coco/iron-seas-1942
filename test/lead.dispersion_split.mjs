@@ -1,0 +1,31 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'savo_island_1942');
+const w = new World({ scenario: sc, database: db, seed: 20261018, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' } });
+for (const s of ['ALLIED', 'AXIS']) w.ai[s].autoCommand = true;
+w.advance(1200);
+const intra = [], inter = [];
+for (const [id, rec] of w.salvoes) {
+  if (!rec.splashes || rec.splashes.length < 2 || !rec.targetShipId) continue;
+  const t = w.ship(rec.targetShipId); const sh = w.ship(rec.shooterId);
+  if (!t || !sh) continue;
+  const brg = Math.atan2(t.pos.x - sh.pos.x, t.pos.y - sh.pos.y);
+  const pts = rec.splashes.map((s) => ({ a: (s.x - t.pos.x) * Math.sin(brg) + (s.y - t.pos.y) * Math.cos(brg), c: (s.x - t.pos.x) * Math.cos(brg) - (s.y - t.pos.y) * Math.sin(brg) }));
+  const ma = pts.reduce((x, p) => x + p.a, 0) / pts.length, mc = pts.reduce((x, p) => x + p.c, 0) / pts.length;
+  const va = pts.reduce((x, p) => x + (p.a - ma) ** 2, 0) / Math.max(1, pts.length - 1);
+  const vc = pts.reduce((x, p) => x + (p.c - mc) ** 2, 0) / Math.max(1, pts.length - 1);
+  intra.push({ sa: Math.sqrt(va), sc: Math.sqrt(vc), n: pts.length, r: rec.rangeM, meanA: ma, meanC: mc });
+  inter.push({ a: ma, c: mc, r: rec.rangeM, tof: rec.tofS, shots: rec.shots });
+}
+const pc = (a, p) => a.length ? a.slice().sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))] : 0;
+const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+const sd = (a) => Math.sqrt(mean(a.map((x) => (x - mean(a)) ** 2)));
+console.log('齐射样本 ' + intra.length + '（每齐射平均 ' + mean(intra.map((x) => x.n)).toFixed(1) + ' 发，均距 ' + (mean(intra.map((x) => x.r)) / 1000).toFixed(1) + 'km）');
+console.log('  齐射内散布 σ（沿射向）：中位 ' + pc(intra.map((x) => x.sa), 0.5).toFixed(0) + 'm  p90 ' + pc(intra.map((x) => x.sa), 0.9).toFixed(0) + 'm');
+console.log('  齐射内散布 σ（垂直）：  中位 ' + pc(intra.map((x) => x.sc), 0.5).toFixed(0) + 'm  p90 ' + pc(intra.map((x) => x.sc), 0.9).toFixed(0) + 'm');
+console.log('  齐射间瞄准跳动 σ（沿射向）：' + sd(inter.map((x) => x.a)).toFixed(0) + 'm   垂直：' + sd(inter.map((x) => x.c)).toFixed(0) + 'm');
+console.log('  → 总散布 σ_沿 ≈ ' + Math.sqrt(sd(inter.map((x) => x.a)) ** 2 + mean(intra.map((x) => x.sa ** 2))).toFixed(0) + 'm');
+console.log('  齐射平均弹数 ' + mean(inter.map((x) => x.shots)).toFixed(1) + '，飞行时间中位 ' + pc(inter.map((x) => x.tof), 0.5).toFixed(1) + 's');

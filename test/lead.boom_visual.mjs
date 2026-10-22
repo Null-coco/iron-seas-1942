@@ -1,0 +1,30 @@
+// 殉爆特效验证：addBoom 后渲染不报错且特效存在
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const R = path.join(__dirname, '..');
+const calls = [];
+const ctx = new Proxy({ canvas: { width: 800, height: 600 } }, { get(t2, k) { if (k === 'canvas') return t2.canvas; if (typeof k === 'symbol') return undefined; if (k === 'createRadialGradient' || k === 'createLinearGradient') return () => ({ addColorStop() {} }); return (...a) => { calls.push(String(k)); }; }, set(t2, k, v) { t2[k] = v; return true; } });
+const el = () => ({ style: {}, dataset: {}, children: [], classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } }, appendChild(c) { this.children.push(c); return c; }, addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return { width: 800, height: 600, left: 0, top: 0 }; }, querySelector() { return el(); }, querySelectorAll() { return []; }, getContext() { return ctx; }, set innerHTML(v) { }, get innerHTML() { return ''; } });
+globalThis.document = { getElementById: () => el(), createElement: () => el(), querySelectorAll: () => [], querySelector: () => el(), addEventListener() {}, body: el() };
+globalThis.window = { devicePixelRatio: 1, addEventListener() {}, removeEventListener() {}, requestAnimationFrame() { return 1; }, location: { protocol: 'http:', host: 'x' } };
+globalThis.requestAnimationFrame = () => 1; globalThis.performance = globalThis.performance || { now: () => Date.now() };
+globalThis.fetch = async (u) => { const p = String(u).replace(/^https?:\/\/[^/]+/, '').replace(/^\.\//, ''); const full = path.join(R, p); return fs.existsSync(full) ? { ok: true, status: 200, json: async () => JSON.parse(fs.readFileSync(full, 'utf8')) } : { ok: false, status: 404, json: async () => null }; };
+globalThis.Path2D = class { constructor() {} moveTo() {} lineTo() {} closePath() {} arc() {} rect() {} addPath() {} };
+const { ChartRenderer } = await import('../src/render/chart.js');
+const { World } = await import('../src/sim/world.js');
+const { ShipDatabase } = await import('../src/sim/data.js');
+const j = (p) => JSON.parse(fs.readFileSync(path.join(R, p), 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'denmark_strait_1941');
+const w = new World({ scenario: sc, database: db, seed: 1, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: j('data/land.json'), depthData: j('data/depth.json') });
+const canvas = el(); canvas.width = 800; canvas.height = 600;
+const chart = new ChartRenderer(canvas, w, { side: 'ALLIED' });
+const own = w.afloatOf('ALLIED')[0];
+chart.addBoom(own.pos.x, own.pos.y, 9000);
+console.log('特效入队: ' + chart.booms.length + ' 个，半径 ' + Math.round(chart.booms[0].r) + 'm');
+chart._booms(ctx);   // 只验证殉爆特效这一层（整幅渲染依赖 Path2D 等浏览器 API）
+const drewRing = calls.filter((c) => c === 'arc').length;
+console.log('渲染调用 arc ' + drewRing + ' 次（>0 表示冲击环/火球已绘制）');
+console.log(chart.booms.length > 0 && drewRing > 0 ? '✅ 殉爆特效工作正常' : '⚠️ 特效未生效');

@@ -1,0 +1,23 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'denmark_strait_1941');
+const w = new World({ scenario: sc, database: db, seed: 1003, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: j('data/land.json'), depthData: j('data/depth.json') });
+for (const s of ['ALLIED', 'AXIS']) w.ai[s].autoCommand = true;
+const rows = [];
+let sample = null;
+w.events.on('fc.solution', (e) => {
+  if (!sample) sample = e;
+  const sh = w.ship(e.ship) || w.ship(e.byShip);
+  if (!sh || sh.side !== 'AXIS') return;
+  rows.push({ t: Math.round(w.t), ship: sh.name, dir: e.director, trk: e.trackId, brg: e.bearingDeg !== undefined ? +e.bearingDeg.toFixed(1) : null, defl: e.deflectionMil, rng: e.rangeM ? Math.round(e.rangeM) : null });
+});
+w.advance(900);
+console.log('fc.solution 字段: ' + (sample ? JSON.stringify(Object.keys(sample)) : '无'));
+console.log('轴心解算样本（后 12 条）:');
+for (const r of rows.slice(-12)) console.log('  t=' + r.t + ' ' + r.ship + ' 指挥仪=' + r.dir + ' 航迹=' + r.trk + ' 方位=' + r.brg + '° 提前量=' + r.defl + 'mil 距离=' + r.rng + 'm');
+const trks = {}; for (const r of rows) trks[r.trk] = (trks[r.trk] || 0) + 1;
+const dirs = {}; for (const r of rows) dirs[r.dir] = (dirs[r.dir] || 0) + 1;
+console.log('解算用到航迹: ' + JSON.stringify(trks) + ' | 指挥仪: ' + JSON.stringify(dirs));

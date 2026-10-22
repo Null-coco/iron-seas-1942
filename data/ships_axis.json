@@ -1,0 +1,5028 @@
+{
+ "_meta": {
+  "compiledBy": "Lead",
+  "date": "2026-10-17",
+  "method": "按舰级建模，公开资料量级；火炮散布与雷达探测距离为同口径/同波段标准量级估计",
+  "references": [
+   "Conway's All the World's Fighting Ships 1922-1946",
+   "Campbell, Naval Weapons of World War Two",
+   "Friedman, Naval Radar",
+   "Jentschura, Warships of the Imperial Japanese Navy"
+  ]
+ },
+ "ships": [
+  {
+   "id": "yamato",
+   "nameZh": "大和",
+   "nameEn": "Yamato",
+   "class": "Yamato",
+   "nation": "JP",
+   "type": "BB",
+   "year": 1941,
+   "displacementStd_t": 63200,
+   "displacementFull_t": 72800,
+   "loa_m": 263,
+   "lwl_m": 253.8,
+   "beam_m": 38.9,
+   "draft_m": 10.4,
+   "gm_m": 3,
+   "blockCoef": 0.6,
+   "power_shp": 150000,
+   "speedMax_kn": 27.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 11648,
+   "turnRadiusAt20kn_m": 894,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 45,
+   "crew": 2750,
+   "armor": {
+    "belt_mm": 410,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 20,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 200,
+    "turretFace_mm": 650,
+    "turretSide_mm": 250,
+    "turretTop_mm": 270,
+    "barbette_mm": 560,
+    "conningTower_mm": 500,
+    "bulkhead_mm": 300,
+    "tps_depth_m": 5,
+    "tpsBulkhead_mm": 65
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 3,
+     "bore_mm": 460,
+     "cal": 45,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 2,
+     "ratePerMin": 1.5,
+     "dispersionHalfWidthMil": 1.4,
+     "barrelLifeRounds": 200,
+     "maxRange_m": 42000,
+     "ammo": {
+      "AP": 320,
+      "HE": 250,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 1460,
+       "mv_mps": 780,
+       "bursting_kg": 17.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 1360,
+       "mv_mps": 805,
+       "bursting_kg": 81.6
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 3,
+     "bore_mm": 155,
+     "cal": 60,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3.5,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 27400,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 55.9,
+       "mv_mps": 920,
+       "bursting_kg": 0.7
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 55.9,
+       "mv_mps": 920,
+       "bursting_kg": 3.4
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 12,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 40,
+     "elevMin_deg": -10,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 14800,
+     "ammo": {
+      "AP": 900,
+      "HE": 1200,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 127,
+     "count": 24,
+     "name": "高射炮",
+     "maxRange_m": 14800,
+     "ratePerMin": 8
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     },
+     {
+      "id": "type13",
+      "nameZh": "13号电探",
+      "band": "P",
+      "wavelength_cm": 200,
+      "peakKW": 10,
+      "gain_dBi": 24,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 40,
+      "hasBearing": false,
+      "hasRange": true,
+      "year": 1943
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 15,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     },
+     {
+      "id": "九二式方位盤",
+      "nameZh": "九二式方位盤",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     },
+     {
+      "id": "九四式高射指揮装置",
+      "nameZh": "九四式高射指揮装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "nagato",
+   "nameZh": "长门",
+   "nameEn": "Nagato",
+   "class": "Nagato",
+   "nation": "JP",
+   "type": "BB",
+   "year": 1941,
+   "displacementStd_t": 39130,
+   "displacementFull_t": 42850,
+   "loa_m": 224.9,
+   "lwl_m": 217,
+   "beam_m": 34.6,
+   "draft_m": 9.5,
+   "gm_m": 1.6,
+   "blockCoef": 0.6,
+   "power_shp": 82000,
+   "speedMax_kn": 26.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 6856,
+   "turnRadiusAt20kn_m": 765,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 38,
+   "crew": 1368,
+   "armor": {
+    "belt_mm": 305,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 15,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 100,
+    "turretFace_mm": 457,
+    "turretSide_mm": 230,
+    "turretTop_mm": 250,
+    "barbette_mm": 350,
+    "conningTower_mm": 370,
+    "bulkhead_mm": 220,
+    "tps_depth_m": 3.6,
+    "tpsBulkhead_mm": 45
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 410,
+     "cal": 45,
+     "elevMin_deg": -5,
+     "elevMax_deg": 43,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 2.5,
+     "ratePerMin": 2,
+     "dispersionHalfWidthMil": 1.7,
+     "barrelLifeRounds": 250,
+     "maxRange_m": 38700,
+     "ammo": {
+      "AP": 320,
+      "HE": 250,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 1020,
+       "mv_mps": 790,
+       "bursting_kg": 12.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 936,
+       "mv_mps": 805,
+       "bursting_kg": 56.2
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 3,
+     "bore_mm": 140,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3.5,
+     "barrelLifeRounds": 600,
+     "maxRange_m": 20000,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 38,
+       "mv_mps": 850,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 38,
+       "mv_mps": 850,
+       "bursting_kg": 2.3
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 40,
+     "elevMin_deg": -10,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 14800,
+     "ammo": {
+      "AP": 900,
+      "HE": 1200,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 127,
+     "count": 12,
+     "name": "高射炮",
+     "maxRange_m": 14800,
+     "ratePerMin": 8
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 10.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     },
+     {
+      "id": "九二式方位盤",
+      "nameZh": "九二式方位盤",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "kongo",
+   "nameZh": "金刚",
+   "nameEn": "Kongo",
+   "class": "Kongo",
+   "nation": "JP",
+   "type": "BC",
+   "year": 1941,
+   "displacementStd_t": 32200,
+   "displacementFull_t": 36600,
+   "loa_m": 222,
+   "lwl_m": 214.2,
+   "beam_m": 31,
+   "draft_m": 9.7,
+   "gm_m": 1.3,
+   "blockCoef": 0.58,
+   "power_shp": 136000,
+   "speedMax_kn": 30.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 5856,
+   "turnRadiusAt20kn_m": 755,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 36,
+   "crew": 1360,
+   "armor": {
+    "belt_mm": 203,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 120,
+    "turretFace_mm": 254,
+    "turretSide_mm": 152,
+    "turretTop_mm": 152,
+    "barbette_mm": 229,
+    "conningTower_mm": 254,
+    "bulkhead_mm": 152,
+    "tps_depth_m": 2.5,
+    "tpsBulkhead_mm": 30
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 356,
+     "cal": 45,
+     "elevMin_deg": -5,
+     "elevMax_deg": 43,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 3.5,
+     "ratePerMin": 2,
+     "dispersionHalfWidthMil": 1.9,
+     "barrelLifeRounds": 250,
+     "maxRange_m": 35450,
+     "ammo": {
+      "AP": 320,
+      "HE": 250,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 673,
+       "mv_mps": 775,
+       "bursting_kg": 8.1
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 625,
+       "mv_mps": 805,
+       "bursting_kg": 37.5
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 7,
+     "gunsPerMount": 2,
+     "bore_mm": 152,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3.5,
+     "barrelLifeRounds": 600,
+     "maxRange_m": 21000,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45,
+       "mv_mps": 850,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45,
+       "mv_mps": 850,
+       "bursting_kg": 2.7
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 40,
+     "elevMin_deg": -10,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 14800,
+     "ammo": {
+      "AP": 900,
+      "HE": 1200,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 127,
+     "count": 12,
+     "name": "高射炮",
+     "maxRange_m": 14800,
+     "ratePerMin": 8
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 10.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     },
+     {
+      "id": "九四式高射指揮装置",
+      "nameZh": "九四式高射指揮装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "fuso",
+   "nameZh": "扶桑",
+   "nameEn": "Fuso",
+   "class": "Fuso",
+   "nation": "JP",
+   "type": "BB",
+   "year": 1944,
+   "displacementStd_t": 34700,
+   "displacementFull_t": 39150,
+   "loa_m": 213,
+   "lwl_m": 205.5,
+   "beam_m": 33.1,
+   "draft_m": 9.7,
+   "gm_m": 1.4,
+   "blockCoef": 0.59,
+   "power_shp": 75000,
+   "speedMax_kn": 24.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 6264,
+   "turnRadiusAt20kn_m": 724,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 35,
+   "crew": 1400,
+   "armor": {
+    "belt_mm": 305,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 95,
+    "turretFace_mm": 305,
+    "turretSide_mm": 229,
+    "turretTop_mm": 152,
+    "barbette_mm": 305,
+    "conningTower_mm": 305,
+    "bulkhead_mm": 200,
+    "tps_depth_m": 3,
+    "tpsBulkhead_mm": 40
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 356,
+     "cal": 45,
+     "elevMin_deg": -5,
+     "elevMax_deg": 43,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 2,
+     "ratePerMin": 1.8,
+     "dispersionHalfWidthMil": 2,
+     "barrelLifeRounds": 250,
+     "maxRange_m": 35450,
+     "ammo": {
+      "AP": 320,
+      "HE": 250,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 673,
+       "mv_mps": 775,
+       "bursting_kg": 8.1
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 625,
+       "mv_mps": 805,
+       "bursting_kg": 37.5
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 152,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 5,
+     "dispersionHalfWidthMil": 3.5,
+     "barrelLifeRounds": 600,
+     "maxRange_m": 21000,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45,
+       "mv_mps": 850,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45,
+       "mv_mps": 850,
+       "bursting_kg": 2.7
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 8,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 40,
+     "elevMin_deg": -10,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 14800,
+     "ammo": {
+      "AP": 900,
+      "HE": 1200,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 127,
+     "count": 16,
+     "name": "高射炮",
+     "maxRange_m": 14800,
+     "ratePerMin": 8
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1944
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 10.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "takao",
+   "nameZh": "高雄",
+   "nameEn": "Takao",
+   "class": "Takao",
+   "nation": "JP",
+   "type": "CA",
+   "year": 1942,
+   "displacementStd_t": 13350,
+   "displacementFull_t": 15490,
+   "loa_m": 203.8,
+   "lwl_m": 196.7,
+   "beam_m": 20.4,
+   "draft_m": 6.3,
+   "gm_m": 1.2,
+   "blockCoef": 0.56,
+   "power_shp": 130000,
+   "speedMax_kn": 34.2,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 2478,
+   "turnRadiusAt20kn_m": 693,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 30,
+   "crew": 920,
+   "armor": {
+    "belt_mm": 127,
+    "beltHeight_m": 4.5,
+    "beltInclined_deg": 12,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 37,
+    "turretFace_mm": 25,
+    "turretSide_mm": 25,
+    "turretTop_mm": 25,
+    "barbette_mm": 152,
+    "conningTower_mm": 76,
+    "bulkhead_mm": 100,
+    "tps_depth_m": 2.8,
+    "tpsBulkhead_mm": 25
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 5,
+     "gunsPerMount": 2,
+     "bore_mm": 203,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 3,
+     "dispersionHalfWidthMil": 2.4,
+     "barrelLifeRounds": 400,
+     "maxRange_m": 29400,
+     "ammo": {
+      "AP": 320,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 125,
+       "mv_mps": 840,
+       "bursting_kg": 1.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 125,
+       "mv_mps": 840,
+       "bursting_kg": 7.5
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 1,
+     "bore_mm": 127,
+     "cal": 40,
+     "elevMin_deg": -5,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 14800,
+     "ammo": {
+      "AP": 500,
+      "HE": 800,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九二式四连装 #1",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式四连装 #2",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式四连装 #3",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式四连装 #4",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     },
+     {
+      "id": "type13",
+      "nameZh": "13号电探",
+      "band": "P",
+      "wavelength_cm": 200,
+      "peakKW": 10,
+      "gain_dBi": 24,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 40,
+      "hasBearing": false,
+      "hasRange": true,
+      "year": 1943
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 8,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     },
+     {
+      "id": "九四式高射指揮装置",
+      "nameZh": "九四式高射指揮装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "aoba",
+   "nameZh": "青叶",
+   "nameEn": "Aoba",
+   "class": "Aoba",
+   "nation": "JP",
+   "type": "CA",
+   "year": 1942,
+   "displacementStd_t": 8300,
+   "displacementFull_t": 10822,
+   "loa_m": 185.2,
+   "lwl_m": 178.7,
+   "beam_m": 17.6,
+   "draft_m": 5.7,
+   "gm_m": 1.1,
+   "blockCoef": 0.55,
+   "power_shp": 102000,
+   "speedMax_kn": 34.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 1732,
+   "turnRadiusAt20kn_m": 630,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 28,
+   "crew": 680,
+   "armor": {
+    "belt_mm": 76,
+    "beltHeight_m": 4,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 37,
+    "turretFace_mm": 25,
+    "turretSide_mm": 25,
+    "turretTop_mm": 25,
+    "barbette_mm": 76,
+    "conningTower_mm": 76,
+    "bulkhead_mm": 60,
+    "tps_depth_m": 2.4,
+    "tpsBulkhead_mm": 22
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 2,
+     "bore_mm": 203,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 3,
+     "dispersionHalfWidthMil": 2.6,
+     "barrelLifeRounds": 400,
+     "maxRange_m": 29400,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 125,
+       "mv_mps": 840,
+       "bursting_kg": 1.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 125,
+       "mv_mps": 840,
+       "bursting_kg": 7.5
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 2,
+     "gunsPerMount": 1,
+     "bore_mm": 120,
+     "cal": 45,
+     "elevMin_deg": -5,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 10,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1200,
+     "maxRange_m": 15500,
+     "ammo": {
+      "AP": 300,
+      "HE": 500,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 20.4,
+       "mv_mps": 825,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 20.4,
+       "mv_mps": 825,
+       "bursting_kg": 1.2
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九二式四连装 #1",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式四连装 #2",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 6,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "mogami",
+   "nameZh": "最上",
+   "nameEn": "Mogami",
+   "class": "Mogami",
+   "nation": "JP",
+   "type": "CA",
+   "year": 1942,
+   "displacementStd_t": 13500,
+   "displacementFull_t": 15057,
+   "loa_m": 201,
+   "lwl_m": 194,
+   "beam_m": 20.5,
+   "draft_m": 5.8,
+   "gm_m": 1.2,
+   "blockCoef": 0.56,
+   "power_shp": 152000,
+   "speedMax_kn": 35,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 2409,
+   "turnRadiusAt20kn_m": 683,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 30,
+   "crew": 950,
+   "armor": {
+    "belt_mm": 140,
+    "beltHeight_m": 4,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 35,
+    "turretFace_mm": 25,
+    "turretSide_mm": 25,
+    "turretTop_mm": 25,
+    "barbette_mm": 100,
+    "conningTower_mm": 76,
+    "bulkhead_mm": 80,
+    "tps_depth_m": 2.6,
+    "tpsBulkhead_mm": 25
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 5,
+     "gunsPerMount": 2,
+     "bore_mm": 203,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 3,
+     "dispersionHalfWidthMil": 2.6,
+     "barrelLifeRounds": 400,
+     "maxRange_m": 29400,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 125,
+       "mv_mps": 840,
+       "bursting_kg": 1.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 125,
+       "mv_mps": 840,
+       "bursting_kg": 7.5
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 40,
+     "elevMin_deg": -10,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 14800,
+     "ammo": {
+      "AP": 700,
+      "HE": 1000,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 720,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九〇式三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九〇式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九〇式三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九〇式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九〇式三连装 #3",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九〇式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九〇式三连装 #4",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九〇式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [
+    {
+     "caliber_mm": 127,
+     "count": 8,
+     "name": "高射炮",
+     "maxRange_m": 14800,
+     "ratePerMin": 8
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "type22",
+      "nameZh": "22号电探",
+      "band": "X",
+      "wavelength_cm": 10,
+      "peakKW": 10,
+      "gain_dBi": 30,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 8,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "yubari",
+   "nameZh": "夕张",
+   "nameEn": "Yubari",
+   "class": "Yubari",
+   "nation": "JP",
+   "type": "CL",
+   "year": 1942,
+   "displacementStd_t": 2890,
+   "displacementFull_t": 3490,
+   "loa_m": 138.9,
+   "lwl_m": 134,
+   "beam_m": 12,
+   "draft_m": 3.6,
+   "gm_m": 0.9,
+   "blockCoef": 0.5,
+   "power_shp": 57900,
+   "speedMax_kn": 35.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 558,
+   "turnRadiusAt20kn_m": 472,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 26,
+   "crew": 328,
+   "armor": {
+    "belt_mm": 38,
+    "beltHeight_m": 2.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 25,
+    "turretFace_mm": 25,
+    "turretSide_mm": 25,
+    "turretTop_mm": 25,
+    "barbette_mm": 40,
+    "conningTower_mm": 50,
+    "bulkhead_mm": 30,
+    "tps_depth_m": 1.6,
+    "tpsBulkhead_mm": 15
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 2,
+     "gunsPerMount": 2,
+     "bore_mm": 140,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 5,
+     "dispersionHalfWidthMil": 3,
+     "barrelLifeRounds": 400,
+     "maxRange_m": 18000,
+     "ammo": {
+      "AP": 200,
+      "HE": 300,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 38,
+       "mv_mps": 850,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 38,
+       "mv_mps": 850,
+       "bursting_kg": 2.3
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 1,
+     "gunsPerMount": 1,
+     "bore_mm": 120,
+     "cal": 45,
+     "elevMin_deg": -10,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 10,
+     "ratePerMin": 8,
+     "dispersionHalfWidthMil": 5,
+     "barrelLifeRounds": 1200,
+     "maxRange_m": 15500,
+     "ammo": {
+      "AP": 200,
+      "HE": 400,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 20.4,
+       "mv_mps": 825,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 20.4,
+       "mv_mps": 825,
+       "bursting_kg": 1.2
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九二式二连装 #1",
+     "tubes": 2,
+     "caliber_mm": 610,
+     "name": "九二式二连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式二连装 #2",
+     "tubes": 2,
+     "caliber_mm": 610,
+     "name": "九二式二连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [
+    {
+     "caliber_mm": 120,
+     "count": 1,
+     "name": "高射炮",
+     "maxRange_m": 15500,
+     "ratePerMin": 8
+    }
+   ],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 4.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "tenryu",
+   "nameZh": "天龙",
+   "nameEn": "Tenryu",
+   "class": "Tenryu",
+   "nation": "JP",
+   "type": "CL",
+   "year": 1942,
+   "displacementStd_t": 3230,
+   "displacementFull_t": 4350,
+   "loa_m": 142.9,
+   "lwl_m": 137.9,
+   "beam_m": 12.3,
+   "draft_m": 4,
+   "gm_m": 0.9,
+   "blockCoef": 0.5,
+   "power_shp": 51000,
+   "speedMax_kn": 33,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 696,
+   "turnRadiusAt20kn_m": 486,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 26,
+   "crew": 327,
+   "armor": {
+    "belt_mm": 63,
+    "beltHeight_m": 2.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 25,
+    "turretFace_mm": 25,
+    "turretSide_mm": 25,
+    "turretTop_mm": 25,
+    "barbette_mm": 50,
+    "conningTower_mm": 50,
+    "bulkhead_mm": 30,
+    "tps_depth_m": 1.6,
+    "tpsBulkhead_mm": 15
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 1,
+     "bore_mm": 140,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 5,
+     "dispersionHalfWidthMil": 3,
+     "barrelLifeRounds": 400,
+     "maxRange_m": 18000,
+     "ammo": {
+      "AP": 250,
+      "HE": 300,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 38,
+       "mv_mps": 850,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 38,
+       "mv_mps": 850,
+       "bursting_kg": 2.3
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九二式三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九二式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九二式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 4.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "fubuki",
+   "nameZh": "吹雪",
+   "nameEn": "Fubuki",
+   "class": "Fubuki",
+   "nation": "JP",
+   "type": "DD",
+   "year": 1942,
+   "displacementStd_t": 1750,
+   "displacementFull_t": 2050,
+   "loa_m": 118.4,
+   "lwl_m": 114.3,
+   "beam_m": 10.4,
+   "draft_m": 3.2,
+   "gm_m": 0.85,
+   "blockCoef": 0.5,
+   "power_shp": 50000,
+   "speedMax_kn": 38,
+   "speedEcon_kn": 15,
+   "rangeEcon_nm": 5000,
+   "fuel_t": 328,
+   "turnRadiusAt20kn_m": 308,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 24,
+   "crew": 219,
+   "armor": {
+    "belt_mm": 0,
+    "beltHeight_m": 0,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 19,
+    "turretFace_mm": 3,
+    "turretSide_mm": 3,
+    "turretTop_mm": 3,
+    "barbette_mm": 0,
+    "conningTower_mm": 16,
+    "bulkhead_mm": 0,
+    "tps_depth_m": 1.2,
+    "tpsBulkhead_mm": 10
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 10,
+     "ratePerMin": 7,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 1000,
+     "maxRange_m": 18400,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 915,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 915,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九三式三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九三式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 1,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九三式三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九三式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 1,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九三式三连装 #3",
+     "tubes": 3,
+     "caliber_mm": 610,
+     "name": "九三式三连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 1,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 3,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "kagero",
+   "nameZh": "阳炎",
+   "nameEn": "Kagero",
+   "class": "Kagero",
+   "nation": "JP",
+   "type": "DD",
+   "year": 1942,
+   "displacementStd_t": 2033,
+   "displacementFull_t": 2500,
+   "loa_m": 118.5,
+   "lwl_m": 114.4,
+   "beam_m": 10.8,
+   "draft_m": 3.8,
+   "gm_m": 0.85,
+   "blockCoef": 0.52,
+   "power_shp": 52000,
+   "speedMax_kn": 35,
+   "speedEcon_kn": 15,
+   "rangeEcon_nm": 5000,
+   "fuel_t": 400,
+   "turnRadiusAt20kn_m": 308,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 24,
+   "crew": 240,
+   "armor": {
+    "belt_mm": 0,
+    "beltHeight_m": 0,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 19,
+    "turretFace_mm": 3,
+    "turretSide_mm": 3,
+    "turretTop_mm": 3,
+    "barbette_mm": 0,
+    "conningTower_mm": 16,
+    "bulkhead_mm": 0,
+    "tps_depth_m": 1.2,
+    "tpsBulkhead_mm": 10
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 10,
+     "ratePerMin": 7,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 1000,
+     "maxRange_m": 18400,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 915,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 915,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九二式四连装 #1",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 1,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九二式四连装 #2",
+     "tubes": 4,
+     "caliber_mm": 610,
+     "name": "九二式四连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 1,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 3,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "shimakaze",
+   "nameZh": "岛风",
+   "nameEn": "Shimakaze",
+   "class": "Shimakaze",
+   "nation": "JP",
+   "type": "DD",
+   "year": 1943,
+   "displacementStd_t": 2567,
+   "displacementFull_t": 3300,
+   "loa_m": 129.5,
+   "lwl_m": 125,
+   "beam_m": 11.2,
+   "draft_m": 4.1,
+   "gm_m": 0.9,
+   "blockCoef": 0.52,
+   "power_shp": 75000,
+   "speedMax_kn": 40.9,
+   "speedEcon_kn": 15,
+   "rangeEcon_nm": 5000,
+   "fuel_t": 528,
+   "turnRadiusAt20kn_m": 337,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 26,
+   "crew": 267,
+   "armor": {
+    "belt_mm": 0,
+    "beltHeight_m": 0,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 19,
+    "turretFace_mm": 3,
+    "turretSide_mm": 3,
+    "turretTop_mm": 3,
+    "barbette_mm": 0,
+    "conningTower_mm": 16,
+    "bulkhead_mm": 0,
+    "tps_depth_m": 1.2,
+    "tpsBulkhead_mm": 10
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 2,
+     "bore_mm": 127,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 55,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 10,
+     "ratePerMin": 7,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 1000,
+     "maxRange_m": 18400,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23,
+       "mv_mps": 915,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23,
+       "mv_mps": 915,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "九三式五连装 #1",
+     "tubes": 5,
+     "caliber_mm": 610,
+     "name": "九三式五连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九三式五连装 #2",
+     "tubes": 5,
+     "caliber_mm": 610,
+     "name": "九三式五连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "九三式五连装 #3",
+     "tubes": 5,
+     "caliber_mm": 610,
+     "name": "九三式五连装",
+     "warhead_kg": 490,
+     "speed_kn": [
+      48,
+      36
+     ],
+     "range_m": [
+      20000,
+      40000
+     ],
+     "wakeVisible": false,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.06,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 3,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "九四式方位盤照準装置",
+      "nameZh": "九四式方位盤照準装置",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "bismarck",
+   "nameZh": "俾斯麦",
+   "nameEn": "Bismarck",
+   "class": "Bismarck",
+   "nation": "DE",
+   "type": "BB",
+   "year": 1941,
+   "displacementStd_t": 41700,
+   "displacementFull_t": 50300,
+   "loa_m": 251,
+   "lwl_m": 242.2,
+   "beam_m": 36,
+   "draft_m": 9.9,
+   "gm_m": 3,
+   "blockCoef": 0.58,
+   "power_shp": 148000,
+   "speedMax_kn": 30,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 8048,
+   "turnRadiusAt20kn_m": 853,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 42,
+   "crew": 2200,
+   "armor": {
+    "belt_mm": 320,
+    "beltHeight_m": 3.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 120,
+    "turretFace_mm": 360,
+    "turretSide_mm": 220,
+    "turretTop_mm": 180,
+    "barbette_mm": 340,
+    "conningTower_mm": 350,
+    "bulkhead_mm": 220,
+    "tps_depth_m": 4.5,
+    "tpsBulkhead_mm": 45
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 380,
+     "cal": 47,
+     "elevMin_deg": -5,
+     "elevMax_deg": 30,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 2.5,
+     "dispersionHalfWidthMil": 1.5,
+     "barrelLifeRounds": 250,
+     "maxRange_m": 36520,
+     "ammo": {
+      "AP": 320,
+      "HE": 350,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 800,
+       "mv_mps": 820,
+       "bursting_kg": 9.6
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 800,
+       "mv_mps": 820,
+       "bursting_kg": 48
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 150,
+     "cal": 55,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 23000,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 2.7
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 8,
+     "gunsPerMount": 2,
+     "bore_mm": 105,
+     "cal": 65,
+     "elevMin_deg": -10,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 12,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 2000,
+     "maxRange_m": 17700,
+     "ammo": {
+      "AP": 900,
+      "HE": 1200,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.9
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 105,
+     "count": 16,
+     "name": "高射炮",
+     "maxRange_m": 17700,
+     "ratePerMin": 12
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "fumo23",
+      "nameZh": "FuMO 23 Seetakt",
+      "band": "L",
+      "wavelength_cm": 81,
+      "peakKW": 8,
+      "gain_dBi": 26,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 13,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1941
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 10.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "C/38 KdEu 主射击指挥仪",
+      "nameZh": "C/38 KdEu 主射击指挥仪",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     },
+     {
+      "id": "SL-6 高射指挥仪",
+      "nameZh": "SL-6 高射指挥仪",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "scharnhorst",
+   "nameZh": "沙恩霍斯特",
+   "nameEn": "Scharnhorst",
+   "class": "Scharnhorst",
+   "nation": "DE",
+   "type": "BB",
+   "year": 1943,
+   "displacementStd_t": 32100,
+   "displacementFull_t": 38100,
+   "loa_m": 235.4,
+   "lwl_m": 227.2,
+   "beam_m": 30,
+   "draft_m": 9.9,
+   "gm_m": 2.6,
+   "blockCoef": 0.57,
+   "power_shp": 165000,
+   "speedMax_kn": 31.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 6096,
+   "turnRadiusAt20kn_m": 800,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 40,
+   "crew": 1968,
+   "armor": {
+    "belt_mm": 350,
+    "beltHeight_m": 3.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 105,
+    "turretFace_mm": 360,
+    "turretSide_mm": 200,
+    "turretTop_mm": 150,
+    "barbette_mm": 350,
+    "conningTower_mm": 350,
+    "bulkhead_mm": 200,
+    "tps_depth_m": 4.5,
+    "tpsBulkhead_mm": 45
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 3,
+     "bore_mm": 283,
+     "cal": 54.5,
+     "elevMin_deg": -5,
+     "elevMax_deg": 40,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 3,
+     "dispersionHalfWidthMil": 1.6,
+     "barrelLifeRounds": 250,
+     "maxRange_m": 40930,
+     "ammo": {
+      "AP": 300,
+      "HE": 350,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 330,
+       "mv_mps": 890,
+       "bursting_kg": 4
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 315,
+       "mv_mps": 890,
+       "bursting_kg": 18.9
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 150,
+     "cal": 55,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 23000,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 2.7
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 7,
+     "gunsPerMount": 2,
+     "bore_mm": 105,
+     "cal": 65,
+     "elevMin_deg": -10,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 12,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 2000,
+     "maxRange_m": 17700,
+     "ammo": {
+      "AP": 800,
+      "HE": 1100,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.9
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 105,
+     "count": 14,
+     "name": "高射炮",
+     "maxRange_m": 17700,
+     "ratePerMin": 12
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "fumo25",
+      "nameZh": "FuMO 25",
+      "band": "L",
+      "wavelength_cm": 81,
+      "peakKW": 20,
+      "gain_dBi": 28,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 16,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1943
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 10.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "C/38 KdEu 主射击指挥仪",
+      "nameZh": "C/38 KdEu 主射击指挥仪",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "graf_spee",
+   "nameZh": "施佩伯爵",
+   "nameEn": "Admiral Graf Spee",
+   "class": "Deutschland",
+   "nation": "DE",
+   "type": "CA",
+   "year": 1939,
+   "displacementStd_t": 12100,
+   "displacementFull_t": 16200,
+   "loa_m": 186,
+   "lwl_m": 179.5,
+   "beam_m": 21.6,
+   "draft_m": 7.3,
+   "gm_m": 1.4,
+   "blockCoef": 0.55,
+   "power_shp": 54000,
+   "speedMax_kn": 28.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 2592,
+   "turnRadiusAt20kn_m": 632,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 33,
+   "crew": 1150,
+   "armor": {
+    "belt_mm": 80,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 40,
+    "turretFace_mm": 140,
+    "turretSide_mm": 80,
+    "turretTop_mm": 60,
+    "barbette_mm": 100,
+    "conningTower_mm": 150,
+    "bulkhead_mm": 60,
+    "tps_depth_m": 2.5,
+    "tpsBulkhead_mm": 30
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 2,
+     "gunsPerMount": 3,
+     "bore_mm": 283,
+     "cal": 52,
+     "elevMin_deg": -5,
+     "elevMax_deg": 40,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 2.5,
+     "dispersionHalfWidthMil": 1.8,
+     "barrelLifeRounds": 250,
+     "maxRange_m": 36400,
+     "ammo": {
+      "AP": 240,
+      "HE": 300,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 300,
+       "mv_mps": 910,
+       "bursting_kg": 3.6
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 300,
+       "mv_mps": 910,
+       "bursting_kg": 18
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 8,
+     "gunsPerMount": 1,
+     "bore_mm": 150,
+     "cal": 55,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 22000,
+     "ammo": {
+      "AP": 300,
+      "HE": 500,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 2.7
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 2,
+     "bore_mm": 105,
+     "cal": 65,
+     "elevMin_deg": -10,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 12,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 2000,
+     "maxRange_m": 17700,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.9
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "G7a 四连装 #1",
+     "tubes": 4,
+     "caliber_mm": 533,
+     "name": "G7a 四连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 四连装 #2",
+     "tubes": 4,
+     "caliber_mm": 533,
+     "name": "G7a 四连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [
+    {
+     "caliber_mm": 105,
+     "count": 6,
+     "name": "高射炮",
+     "maxRange_m": 17700,
+     "ratePerMin": 12
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "fumo22",
+      "nameZh": "FuMO 22",
+      "band": "L",
+      "wavelength_cm": 81,
+      "peakKW": 8,
+      "gain_dBi": 24,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 13,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1939
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 10.5,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "主射击指挥仪 C/35",
+      "nameZh": "主射击指挥仪 C/35",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "hipper",
+   "nameZh": "希佩尔",
+   "nameEn": "Admiral Hipper",
+   "class": "AdmiralHipper",
+   "nation": "DE",
+   "type": "CA",
+   "year": 1942,
+   "displacementStd_t": 14250,
+   "displacementFull_t": 18400,
+   "loa_m": 212.5,
+   "lwl_m": 205.1,
+   "beam_m": 21.7,
+   "draft_m": 7.2,
+   "gm_m": 1.5,
+   "blockCoef": 0.55,
+   "power_shp": 132000,
+   "speedMax_kn": 32.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 2944,
+   "turnRadiusAt20kn_m": 723,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 33,
+   "crew": 1600,
+   "armor": {
+    "belt_mm": 80,
+    "beltHeight_m": 3.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 50,
+    "turretFace_mm": 160,
+    "turretSide_mm": 70,
+    "turretTop_mm": 50,
+    "barbette_mm": 100,
+    "conningTower_mm": 150,
+    "bulkhead_mm": 70,
+    "tps_depth_m": 2.6,
+    "tpsBulkhead_mm": 30
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 203,
+     "cal": 60,
+     "elevMin_deg": -5,
+     "elevMax_deg": 37,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 4,
+     "dispersionHalfWidthMil": 2,
+     "barrelLifeRounds": 300,
+     "maxRange_m": 33500,
+     "ammo": {
+      "AP": 280,
+      "HE": 320,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 122,
+       "mv_mps": 925,
+       "bursting_kg": 1.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 122,
+       "mv_mps": 925,
+       "bursting_kg": 7.3
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 105,
+     "cal": 65,
+     "elevMin_deg": -5,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 12,
+     "ratePerMin": 12,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 2000,
+     "maxRange_m": 17700,
+     "ammo": {
+      "AP": 500,
+      "HE": 800,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 15.1,
+       "mv_mps": 900,
+       "bursting_kg": 0.9
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "G7a 三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #3",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #4",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [
+     {
+      "id": "fumo22",
+      "nameZh": "FuMO 22",
+      "band": "L",
+      "wavelength_cm": 81,
+      "peakKW": 8,
+      "gain_dBi": 24,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 13,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 6,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "主射击指挥仪 C/38",
+      "nameZh": "主射击指挥仪 C/38",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "nurnberg",
+   "nameZh": "纽伦堡",
+   "nameEn": "Nurnberg",
+   "class": "Nurnberg",
+   "nation": "DE",
+   "type": "CL",
+   "year": 1942,
+   "displacementStd_t": 7150,
+   "displacementFull_t": 9040,
+   "loa_m": 181,
+   "lwl_m": 174.7,
+   "beam_m": 16.3,
+   "draft_m": 5.5,
+   "gm_m": 1.1,
+   "blockCoef": 0.52,
+   "power_shp": 66000,
+   "speedMax_kn": 32,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 1446,
+   "turnRadiusAt20kn_m": 615,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 28,
+   "crew": 935,
+   "armor": {
+    "belt_mm": 50,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 25,
+    "turretFace_mm": 80,
+    "turretSide_mm": 35,
+    "turretTop_mm": 25,
+    "barbette_mm": 60,
+    "conningTower_mm": 100,
+    "bulkhead_mm": 40,
+    "tps_depth_m": 2,
+    "tpsBulkhead_mm": 20
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 3,
+     "bore_mm": 150,
+     "cal": 55,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 2.8,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 22000,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 2.7
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "G7a 三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #3",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #4",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [
+     {
+      "id": "fumo22",
+      "nameZh": "FuMO 22",
+      "band": "L",
+      "wavelength_cm": 81,
+      "peakKW": 8,
+      "gain_dBi": 24,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 13,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 6,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "主射击指挥仪 C/38",
+      "nameZh": "主射击指挥仪 C/38",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "leipzig",
+   "nameZh": "莱比锡",
+   "nameEn": "Leipzig",
+   "class": "Leipzig",
+   "nation": "DE",
+   "type": "CL",
+   "year": 1939,
+   "displacementStd_t": 6315,
+   "displacementFull_t": 8250,
+   "loa_m": 177,
+   "lwl_m": 170.8,
+   "beam_m": 16.3,
+   "draft_m": 5.7,
+   "gm_m": 1.1,
+   "blockCoef": 0.52,
+   "power_shp": 60000,
+   "speedMax_kn": 32,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 1320,
+   "turnRadiusAt20kn_m": 602,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 28,
+   "crew": 850,
+   "armor": {
+    "belt_mm": 50,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 25,
+    "turretFace_mm": 80,
+    "turretSide_mm": 35,
+    "turretTop_mm": 25,
+    "barbette_mm": 60,
+    "conningTower_mm": 100,
+    "bulkhead_mm": 40,
+    "tps_depth_m": 2,
+    "tpsBulkhead_mm": 20
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 3,
+     "bore_mm": 150,
+     "cal": 55,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 2.8,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 22000,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 0.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 45.3,
+       "mv_mps": 875,
+       "bursting_kg": 2.7
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "G7a 三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #3",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "G7a 三连装 #4",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "G7a 三连装",
+     "warhead_kg": 300,
+     "speed_kn": [
+      44,
+      30
+     ],
+     "range_m": [
+      6000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.15,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [
+     {
+      "id": "fumo22",
+      "nameZh": "FuMO 22",
+      "band": "L",
+      "wavelength_cm": 81,
+      "peakKW": 8,
+      "gain_dBi": 24,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 13,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1939
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 6,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "主射击指挥仪 C/38",
+      "nameZh": "主射击指挥仪 C/38",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "trento",
+   "nameZh": "特伦托",
+   "nameEn": "Trento",
+   "class": "Trento",
+   "nation": "IT",
+   "type": "CA",
+   "year": 1941,
+   "displacementStd_t": 10500,
+   "displacementFull_t": 13334,
+   "loa_m": 196.9,
+   "lwl_m": 190,
+   "beam_m": 20.6,
+   "draft_m": 6.8,
+   "gm_m": 1.3,
+   "blockCoef": 0.55,
+   "power_shp": 150000,
+   "speedMax_kn": 35,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 2133,
+   "turnRadiusAt20kn_m": 669,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 30,
+   "crew": 723,
+   "armor": {
+    "belt_mm": 70,
+    "beltHeight_m": 3.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 50,
+    "turretFace_mm": 100,
+    "turretSide_mm": 50,
+    "turretTop_mm": 40,
+    "barbette_mm": 100,
+    "conningTower_mm": 100,
+    "bulkhead_mm": 60,
+    "tps_depth_m": 3,
+    "tpsBulkhead_mm": 30
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 203,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 3.5,
+     "dispersionHalfWidthMil": 2.2,
+     "barrelLifeRounds": 300,
+     "maxRange_m": 31500,
+     "ammo": {
+      "AP": 280,
+      "HE": 320,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 125,
+       "mv_mps": 900,
+       "bursting_kg": 1.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 110,
+       "mv_mps": 940,
+       "bursting_kg": 6.6
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "533mm 三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "533mm 三连装",
+     "warhead_kg": 270,
+     "speed_kn": [
+      41,
+      30
+     ],
+     "range_m": [
+      10000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.18,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "533mm 三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "533mm 三连装",
+     "warhead_kg": 270,
+     "speed_kn": [
+      41,
+      30
+     ],
+     "range_m": [
+      10000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.18,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 7,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "中央射击指挥仪",
+      "nameZh": "中央射击指挥仪",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "giulio_cesare",
+   "nameZh": "朱利奥·凯撒",
+   "nameEn": "Giulio Cesare",
+   "class": "GiulioCesare",
+   "nation": "IT",
+   "type": "BB",
+   "year": 1940,
+   "displacementStd_t": 23619,
+   "displacementFull_t": 29100,
+   "loa_m": 186.4,
+   "lwl_m": 179.9,
+   "beam_m": 28,
+   "draft_m": 8.4,
+   "gm_m": 1.5,
+   "blockCoef": 0.57,
+   "power_shp": 75000,
+   "speedMax_kn": 27,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 4656,
+   "turnRadiusAt20kn_m": 634,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 36,
+   "crew": 1260,
+   "armor": {
+    "belt_mm": 250,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 135,
+    "turretFace_mm": 280,
+    "turretSide_mm": 180,
+    "turretTop_mm": 130,
+    "barbette_mm": 280,
+    "conningTower_mm": 260,
+    "bulkhead_mm": 160,
+    "tps_depth_m": 3,
+    "tpsBulkhead_mm": 30
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 2,
+     "gunsPerMount": 3,
+     "bore_mm": 320,
+     "cal": 44,
+     "elevMin_deg": -5,
+     "elevMax_deg": 27,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 3,
+     "ratePerMin": 2,
+     "dispersionHalfWidthMil": 1.7,
+     "barrelLifeRounds": 200,
+     "maxRange_m": 28600,
+     "ammo": {
+      "AP": 300,
+      "HE": 300,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 525,
+       "mv_mps": 830,
+       "bursting_kg": 6.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 525,
+       "mv_mps": 830,
+       "bursting_kg": 31.5
+      }
+     }
+    },
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 2,
+     "gunsPerMount": 2,
+     "bore_mm": 320,
+     "cal": 44,
+     "elevMin_deg": -5,
+     "elevMax_deg": 27,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 3,
+     "ratePerMin": 2,
+     "dispersionHalfWidthMil": 1.7,
+     "barrelLifeRounds": 200,
+     "maxRange_m": 28600,
+     "ammo": {
+      "AP": 240,
+      "HE": 240,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 525,
+       "mv_mps": 830,
+       "bursting_kg": 6.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 525,
+       "mv_mps": 830,
+       "bursting_kg": 31.5
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 6,
+     "gunsPerMount": 2,
+     "bore_mm": 120,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 70,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 8,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3.5,
+     "barrelLifeRounds": 900,
+     "maxRange_m": 15000,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 23.4,
+       "mv_mps": 870,
+       "bursting_kg": 0.3
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 23.4,
+       "mv_mps": 870,
+       "bursting_kg": 1.4
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 9,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "中央射击指挥仪（无雷达，靠光学与测距）",
+      "nameZh": "中央射击指挥仪（无雷达，靠光学与测距）",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "vittorio_veneto",
+   "nameZh": "维托里奥·维内托",
+   "nameEn": "Vittorio Veneto",
+   "class": "VittorioVeneto",
+   "nation": "IT",
+   "type": "BB",
+   "year": 1941,
+   "displacementStd_t": 40700,
+   "displacementFull_t": 45900,
+   "loa_m": 237.8,
+   "lwl_m": 229.5,
+   "beam_m": 32.8,
+   "draft_m": 9.6,
+   "gm_m": 2.4,
+   "blockCoef": 0.58,
+   "power_shp": 140000,
+   "speedMax_kn": 30,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 9000,
+   "fuel_t": 7344,
+   "turnRadiusAt20kn_m": 809,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 42,
+   "crew": 1830,
+   "armor": {
+    "belt_mm": 280,
+    "beltHeight_m": 3.5,
+    "beltInclined_deg": 15,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 150,
+    "turretFace_mm": 350,
+    "turretSide_mm": 220,
+    "turretTop_mm": 200,
+    "barbette_mm": 350,
+    "conningTower_mm": 260,
+    "bulkhead_mm": 220,
+    "tps_depth_m": 4,
+    "tpsBulkhead_mm": 40
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 3,
+     "gunsPerMount": 3,
+     "bore_mm": 381,
+     "cal": 50,
+     "elevMin_deg": -5,
+     "elevMax_deg": 36,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 5,
+     "ratePerMin": 2,
+     "dispersionHalfWidthMil": 1.5,
+     "barrelLifeRounds": 200,
+     "maxRange_m": 44800,
+     "ammo": {
+      "AP": 300,
+      "HE": 320,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 885,
+       "mv_mps": 850,
+       "bursting_kg": 10.6
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 824,
+       "mv_mps": 870,
+       "bursting_kg": 49.4
+      }
+     }
+    },
+    {
+     "id": "secondary",
+     "mountLabel": "副炮",
+     "role": "secondary",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 3,
+     "bore_mm": 152,
+     "cal": 55,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 3,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 25700,
+     "ammo": {
+      "AP": 400,
+      "HE": 600,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 50,
+       "mv_mps": 900,
+       "bursting_kg": 0.6
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 50,
+       "mv_mps": 900,
+       "bursting_kg": 3
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 12,
+     "gunsPerMount": 1,
+     "bore_mm": 90,
+     "cal": 50,
+     "elevMin_deg": -10,
+     "elevMax_deg": 80,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 14,
+     "ratePerMin": 12,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 2000,
+     "maxRange_m": 13000,
+     "ammo": {
+      "AP": 900,
+      "HE": 1200,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 10,
+       "mv_mps": 860,
+       "bursting_kg": 0.1
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 10,
+       "mv_mps": 860,
+       "bursting_kg": 0.6
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 90,
+     "count": 12,
+     "name": "高射炮",
+     "maxRange_m": 13000,
+     "ratePerMin": 12
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "gufo",
+      "nameZh": "EC-3 bis Gufo",
+      "band": "S",
+      "wavelength_cm": 40,
+      "peakKW": 10,
+      "gain_dBi": 26,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 9,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "中央射击指挥仪 RM-3",
+      "nameZh": "中央射击指挥仪 RM-3",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "zara",
+   "nameZh": "扎拉",
+   "nameEn": "Zara",
+   "class": "Zara",
+   "nation": "IT",
+   "type": "CA",
+   "year": 1941,
+   "displacementStd_t": 11680,
+   "displacementFull_t": 14170,
+   "loa_m": 182.8,
+   "lwl_m": 176.4,
+   "beam_m": 20.6,
+   "draft_m": 7.2,
+   "gm_m": 1.4,
+   "blockCoef": 0.55,
+   "power_shp": 95000,
+   "speedMax_kn": 32,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 2267,
+   "turnRadiusAt20kn_m": 622,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 30,
+   "crew": 841,
+   "armor": {
+    "belt_mm": 150,
+    "beltHeight_m": 3.5,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 70,
+    "turretFace_mm": 150,
+    "turretSide_mm": 80,
+    "turretTop_mm": 70,
+    "barbette_mm": 140,
+    "conningTower_mm": 150,
+    "bulkhead_mm": 120,
+    "tps_depth_m": 3,
+    "tpsBulkhead_mm": 30
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 203,
+     "cal": 53,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 3.5,
+     "dispersionHalfWidthMil": 2.2,
+     "barrelLifeRounds": 300,
+     "maxRange_m": 31500,
+     "ammo": {
+      "AP": 280,
+      "HE": 320,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 125,
+       "mv_mps": 900,
+       "bursting_kg": 1.5
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 110,
+       "mv_mps": 940,
+       "bursting_kg": 6.6
+      }
+     }
+    },
+    {
+     "id": "aa",
+     "mountLabel": "高射炮",
+     "role": "aa",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 100,
+     "cal": 47,
+     "elevMin_deg": -10,
+     "elevMax_deg": 85,
+     "elevRate_deg_s": 15,
+     "traverseRate_deg_s": 14,
+     "ratePerMin": 12,
+     "dispersionHalfWidthMil": 4,
+     "barrelLifeRounds": 1500,
+     "maxRange_m": 15200,
+     "ammo": {
+      "AP": 700,
+      "HE": 1000,
+      "STAR": 60,
+      "ILLUM": 30
+     },
+     "flashProtection": false,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 13.8,
+       "mv_mps": 880,
+       "bursting_kg": 0.2
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 13.8,
+       "mv_mps": 880,
+       "bursting_kg": 0.8
+      }
+     }
+    }
+   ],
+   "torpedoes": [],
+   "aa": [
+    {
+     "caliber_mm": 100,
+     "count": 8,
+     "name": "高射炮",
+     "maxRange_m": 15200,
+     "ratePerMin": 12
+    }
+   ],
+   "sensors": {
+    "radar": [
+     {
+      "id": "gufo",
+      "nameZh": "EC-3 bis Gufo",
+      "band": "S",
+      "wavelength_cm": 40,
+      "peakKW": 10,
+      "gain_dBi": 26,
+      "prf_hz": 500,
+      "pulseWidth_us": 4,
+      "detectBB_nm": 14,
+      "hasBearing": true,
+      "hasRange": true,
+      "year": 1942
+     }
+    ],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 7,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "中央射击指挥仪 RM-3",
+      "nameZh": "中央射击指挥仪 RM-3",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "duca_daosta",
+   "nameZh": "阿奥斯塔公爵",
+   "nameEn": "Duca d'Aosta",
+   "class": "DucaDAosta",
+   "nation": "IT",
+   "type": "CL",
+   "year": 1940,
+   "displacementStd_t": 8450,
+   "displacementFull_t": 10540,
+   "loa_m": 186.9,
+   "lwl_m": 180.4,
+   "beam_m": 17.5,
+   "draft_m": 6.1,
+   "gm_m": 1.2,
+   "blockCoef": 0.53,
+   "power_shp": 110000,
+   "speedMax_kn": 36.5,
+   "speedEcon_kn": 16,
+   "rangeEcon_nm": 8000,
+   "fuel_t": 1686,
+   "turnRadiusAt20kn_m": 635,
+   "rudderAngleMax_deg": 35,
+   "rudderRate_deg_s": 2.8,
+   "mastHeight_m": 28,
+   "crew": 578,
+   "armor": {
+    "belt_mm": 70,
+    "beltHeight_m": 3,
+    "beltInclined_deg": 0,
+    "beltLengthFrac": 0.5,
+    "deck_mm": 35,
+    "turretFace_mm": 90,
+    "turretSide_mm": 40,
+    "turretTop_mm": 30,
+    "barbette_mm": 80,
+    "conningTower_mm": 100,
+    "bulkhead_mm": 50,
+    "tps_depth_m": 2.2,
+    "tpsBulkhead_mm": 22
+   },
+   "guns": [
+    {
+     "id": "main",
+     "mountLabel": "主炮",
+     "role": "main",
+     "mountType": "turret",
+     "count": 4,
+     "gunsPerMount": 2,
+     "bore_mm": 152,
+     "cal": 53,
+     "elevMin_deg": -5,
+     "elevMax_deg": 45,
+     "elevRate_deg_s": 7,
+     "traverseRate_deg_s": 6,
+     "ratePerMin": 6,
+     "dispersionHalfWidthMil": 2.6,
+     "barrelLifeRounds": 700,
+     "maxRange_m": 25700,
+     "ammo": {
+      "AP": 300,
+      "HE": 400,
+      "STAR": 30,
+      "ILLUM": 12
+     },
+     "flashProtection": true,
+     "shells": {
+      "AP": {
+       "name": "AP",
+       "mass_kg": 50,
+       "mv_mps": 900,
+       "bursting_kg": 0.6
+      },
+      "HE": {
+       "name": "HE",
+       "mass_kg": 50,
+       "mv_mps": 900,
+       "bursting_kg": 3
+      }
+     }
+    }
+   ],
+   "torpedoes": [
+    {
+     "mountLabel": "533mm 三连装 #1",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "533mm 三连装",
+     "warhead_kg": 270,
+     "speed_kn": [
+      41,
+      30
+     ],
+     "range_m": [
+      10000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.18,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    },
+    {
+     "mountLabel": "533mm 三连装 #2",
+     "tubes": 3,
+     "caliber_mm": 533,
+     "name": "533mm 三连装",
+     "warhead_kg": 270,
+     "speed_kn": [
+      41,
+      30
+     ],
+     "range_m": [
+      10000,
+      14000
+     ],
+     "wakeVisible": true,
+     "gyro": true,
+     "reloads": 0,
+     "dudRate": 0.18,
+     "depthSetting_m": [
+      3,
+      8
+     ]
+    }
+   ],
+   "aa": [],
+   "sensors": {
+    "radar": [],
+    "sonar": [
+     {
+      "id": "asdic",
+      "nameZh": "声呐",
+      "active": true,
+      "range_nm": 2.5,
+      "beamWidth_deg": 8
+     }
+    ],
+    "hydro": [
+     {
+      "id": "hydro",
+      "passive": true,
+      "sensitivity": 1
+     }
+    ],
+    "rangefinders": [
+     {
+      "base_m": 6,
+      "type": "coincidence",
+      "mount": "director"
+     }
+    ],
+    "directors": [
+     {
+      "id": "中央射击指挥仪",
+      "nameZh": "中央射击指挥仪",
+      "hasFCComputer": true,
+      "stabilized": true,
+      "channels": 2
+     }
+    ]
+   }
+  }
+ ]
+}

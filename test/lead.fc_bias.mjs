@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+import { computeSolution } from '../src/sim/gunnery.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'denmark_strait_1941');
+const w = new World({ scenario: sc, database: db, seed: 2000, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: j('data/land.json'), depthData: j('data/depth.json') });
+for (const s of ['ALLIED', 'AXIS']) w.ai[s].autoCommand = true;
+w.advance(700);
+const bis = w.ships.find((s) => (s.id || '').indexOf('bismarck') >= 0);
+const ai = w.ai['AXIS'].local || w.ai['AXIS'];
+const pic = ai.picture(w, w.afloatOf('AXIS'));
+const e = pic.find((x) => x.classifiedAs === 'BB' || x.classifiedAs === 'BC');
+if (e) {
+  bis.commanded.targetTrackId = e.tr.id;
+  const sols = (bis.directors || []).map((d) => { const s = computeSolution(bis, d, e.tr, w); return { dir: d.id, ok: !!s, brg: s ? +s.bearingDeg.toFixed(2) : null, defl: s ? s.deflectionMil : null, rng: s ? Math.round(s.rangeM) : null, bias: d._fc ? +(d._fc.biasAng * 57.3 * 1000).toFixed(1) : null }; });
+  console.log('目标 ' + e.tr.id + ' ' + e.classifiedAs + ' ' + Math.round(e.rangeM / 1000) + 'km');
+  console.log('各指挥仪解算: ' + JSON.stringify(sols));
+} else console.log('无主力目标');

@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'denmark_strait_1941');
+const w = new World({ scenario: sc, database: db, seed: 1003, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: j('data/land.json'), depthData: j('data/depth.json') });
+for (const s of ['ALLIED', 'AXIS']) w.ai[s].autoCommand = true;
+const bySide = { AXIS: {}, ALLIED: {} };
+w.events.on('gun.hit', (e) => {
+  const tgt = w.ship(e.ship), shooter = w.ship(e.byShip);
+  if (!tgt || !shooter) return;
+  const s = shooter.side, k = tgt.name;
+  bySide[s][k] = (bySide[s][k] || 0) + 1;
+});
+w.advance(1000);
+const ai = w.ai['AXIS'].local || w.ai['AXIS'];
+const pic = ai.picture(w, w.afloatOf('AXIS'));
+console.log('轴心对英舰命中分布: ' + JSON.stringify(bySide.AXIS));
+console.log('英军对轴心命中分布: ' + JSON.stringify(bySide.ALLIED));
+console.log('任务目标识别: ' + JSON.stringify(pic.map((e) => ({ cls: e.classifiedAs, obj: ai.isObjectiveTarget(w, e.tr), trueIds: Array.from(e.tr._trueIds || []) })).slice(0, 5)));
+const hood = w.ships.find((s) => (s.id||'').indexOf('hood') >= 0), pow = w.ships.find((s) => (s.id||'').indexOf('prince_of_wales') >= 0);
+console.log('Hood 在航 ' + hood.isAfloat + ' 进水 ' + Math.round(hood.floodedM3) + ' 主炮 ' + hood.mainBatteries.filter(b=>!b.destroyed).length + '/' + hood.mainBatteries.length);
+console.log('PoW 在航 ' + pow.isAfloat + ' 进水 ' + Math.round(pow.floodedM3) + ' 主炮 ' + pow.mainBatteries.filter(b=>!b.destroyed).length + '/' + pow.mainBatteries.length);

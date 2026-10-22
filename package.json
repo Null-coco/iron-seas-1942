@@ -1,0 +1,11 @@
+{
+  "name": "iron-seas-1942",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "铁海 1942 — 极重真实感二战海战模拟器（零依赖，原生 ESM）",
+  "scripts": {
+    "start": "node server/serve.mjs",
+    "headless": "node server/headless.mjs"
+  }
+}

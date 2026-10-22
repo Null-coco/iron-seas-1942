@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'savo_island_1942');
+const w = new World({ scenario: sc, database: db, seed: 20261018, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: j('data/land.json'), depthData: j('data/depth.json') });
+for (const s of ['ALLIED', 'AXIS']) w.ai[s].autoCommand = true;
+w.advance(1200);
+const c = (t) => w.events.history.filter((e) => e.type === t).length;
+console.log('gun.fire=' + c('gun.fire') + ' gun.miss=' + c('gun.miss') + ' gun.hit=' + c('gun.hit') + ' gun.salvo.away=' + c('gun.salvo.away') + ' gun.penetration=' + c('gun.penetration') + ' gun.over=' + c('gun.over') + ' gun.dud=' + c('gun.dud'));
+const inFlight = w.projectiles ? w.projectiles.filter((p) => p.alive).length : 0;
+console.log('仍在空中的弹丸=' + inFlight + '  舰炮射击统计 shotsFired=' + w.ships.reduce((a, s) => a + s.stats.shotsFired, 0) + ' hits=' + w.ships.reduce((a, s) => a + s.stats.hits, 0));
+const types = {};
+for (const e of w.events.history) if (String(e.type).indexOf('gun.') === 0 || String(e.type).indexOf('shell.') === 0) types[e.type] = (types[e.type] || 0) + 1;
+console.log('所有弹道相关事件：' + JSON.stringify(types));

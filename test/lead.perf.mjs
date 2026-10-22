@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import { World } from '../src/sim/world.js';
+import { ShipDatabase } from '../src/sim/data.js';
+const j = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const db = ShipDatabase.fromMany([j('data/ships_axis.json'), j('data/ships_allied.json')]);
+const sc = j('data/scenarios.json').scenarios.find((s) => s.id === 'savo_island_1942');
+const land = j('data/land.json'), dep = j('data/depth.json');
+const run = (label, opts, secs = 60) => {
+  const w = new World(Object.assign({ scenario: sc, database: db, seed: 5, playerSide: 'ALLIED', aiOpts: { backend: 'LOCAL' }, landData: land, depthData: dep }, opts));
+  const t0 = Date.now();
+  w.advance(secs);
+  const ms = Date.now() - t0;
+  console.log(label.padEnd(34) + (ms / 1000).toFixed(2) + 's  （' + (ms / secs).toFixed(0) + ' ms/仿真秒）  事件 ' + w.events.history.length + ' 鱼雷 ' + w.torpedoes.length + ' 航迹 ' + w.tracks.tracks.length);
+  return w;
+};
+run('全开（双方 AI）', {});
+const w1 = run('AI 自动指挥关（双方）', {});
+run('无陆地数据', { landData: null });
+run('无水深数据', { depthData: null });
+run('无陆地也无水深', { landData: null, depthData: null });
