@@ -10,6 +10,8 @@
     "test": "node test/run-all.mjs",
     "test:golden": "node test/golden.seed.test.mjs",
     "golden:update": "node tools/golden.mjs --update",
-    "uicheck": "node tools/uicheck.mjs --suite"
+    "uicheck": "node tools/uicheck.mjs --suite",
+    "analyze": "node tools/replay-analyzer.mjs",
+    "analyze:build": "node tools/build-replay-analyzer-html.mjs"
   }
 }

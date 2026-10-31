@@ -552,7 +552,11 @@ test('headless: 内置剧本跑通、结果确定、回放可导出', async () =
   assert.equal(r1.report.database.shipsWanted, 4);
   assert.equal(r1.report.counts.ships, 4);
   assert.ok(r1.report.counts.events > 0);
-  assert.ok(r1.report.timeline.length > 0, '应有 sensor.detect / fc.solution 等大事');
+  // 感知/火控是否真的在跑。原断言用 timeline.length>0，但 timeline 只收 MAJOR_RANK 里的高权重
+  // 事件（沉没/殉爆/夹叉…），45s 短局往往一条都没有 → 假失败（HEAD 上就已失败，与 AI 修复无关）。
+  // 按注释本意改成直接查事件计数：sensor.detect / fc.solution / fc.update 任一出现即算"大事在跑"。
+  const sensed = (r1.report.events['sensor.detect'] || 0) + (r1.report.events['fc.solution'] || 0) + (r1.report.events['fc.update'] || 0);
+  assert.ok(sensed > 0, '应有 sensor.detect / fc.solution 等感知/火控事件（实际 ' + sensed + '）');
   assert.ok(r1.report.ships.every((s) => Number.isFinite(s.speed) && Number.isFinite(s.floodedPct)));
   assert.equal(r1.replay.version, 1);
   assert.ok(Array.isArray(r1.replay.snapshots) && r1.replay.snapshots.length >= 8);

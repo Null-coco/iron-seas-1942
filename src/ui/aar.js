@@ -95,31 +95,68 @@ export function collectAAR(world) {
   if (bus.emitted) for (const k of Object.keys(bus.emitted)) counts[k] = bus.emitted[k];
   const per = {};
   for (const s of world.ships) {
+    // 主炮弹药消耗与余量：战报要给"每舰弹药消耗"，不能只有发射/命中。
+    let ammo0 = 0, ammoLeft = 0;
+    for (const b of (s.mainBatteries || [])) {
+      const d = (b.data && b.data.ammo) || {};
+      ammo0 += (d.AP || 0) + (d.HE || 0);
+      ammoLeft += (b.ammo.AP || 0) + (b.ammo.HE || 0);
+    }
     per[s.id] = {
       name: s.name, side: s.side, type: s.type, shots: s.stats.shotsFired, hits: s.stats.hits,
       taken: s.stats.hitsTaken, nearMisses: 0,
       torps: s.stats.torpedoesFired, torpHits: s.stats.torpHits,
       straddles: s.stats.straddles, flooding: Math.round(s.floodedM3), sunk: !s.isAfloat,
       killed: world.commands.filter((c) => c.shipId === s.id).length,
+      ammo0: Math.round(ammo0), ammoLeft: Math.round(ammoLeft), ammoUsed: Math.max(0, Math.round(ammo0 - ammoLeft)),
+      hitRate: s.stats.shotsFired ? s.stats.hits / s.stats.shotsFired : 0,
     };
   }
   // 近失弹单独计列（gun.nearmiss）；"被命中"口径以 sim 层 stats.hitsTaken 为准
   for (const e of ev) if (e.type === 'gun.nearmiss' && e.ship && per[e.ship]) per[e.ship].nearMisses++;
+  // ── 友军误伤台账（AAR 置顶用）──
+  // 鱼雷：torp.hit.friendly（A2 的敌我识别判定）；炮弹：gun.hit 里 killerSide == victimSide。
+  const friendlyFire = { torpedo: [], gun: [] };
+  for (const e of ev) {
+    const vName = (per[e.ship] && per[e.ship].name) || e.name || e.ship;
+    if (e.type === 'torp.hit' && e.friendly) {
+      friendlyFire.torpedo.push({ t: +(e.t || 0).toFixed(1), victim: e.ship, victimName: vName, shooter: e.shooter, shooterName: (per[e.shooter] && per[e.shooter].name) || e.shooterName || e.shooter });
+    } else if (e.type === 'gun.hit' && e.killerSide && e.victimSide && e.killerSide === e.victimSide) {
+      friendlyFire.gun.push({ t: +(e.t || 0).toFixed(1), victim: e.ship, victimName: vName, by: e.byShip, byName: (per[e.byShip] && per[e.byShip].name) || e.byShipName || e.byShip });
+    }
+  }
   const timeline = pickTimeline(ev, world, per);
   return {
     counts, kept, per, timeline, duration: world.t, winner: world.winner, text: world.resultText,
+    friendlyFire,
     retention: typeof bus.retention === 'function' ? bus.retention() : null,
   };
 }
 
 export function buildAAR(world) {
   const a = collectAAR(world);
-  const win = world.winner === 'ALLIED' || world.winner === 'AXIS' ? (SIDE_ZH[world.winner] || world.winner) : (world.winner || '未分胜负');
+  const sandboxNoWin = !!(world.scenario && world.scenario.sandboxNoVictory);
+  // 沙盒默认关闭胜负判定：结论必须写清楚"为什么没有胜方"，而不是只留一个空白。
+  const win = (world.winner === 'ALLIED' || world.winner === 'AXIS')
+    ? (SIDE_ZH[world.winner] || world.winner)
+    : (sandboxNoWin ? '未分胜负（沙盒关闭胜负判定）' : (world.winner || '未分胜负'));
   const summary = String(world.resultText || '').trim();
   let h = '<h2>战报 · ' + esc(world.scenario.nameZh || world.scenario.id) + '</h2>';
   h += '<div class="lead">结局：<b style="color:var(--brass-2)">' + esc(win) + '</b>' +
     (summary ? ' —— ' + esc(summary) : '') +
     ' · 历时 ' + fmtClockHM(a.duration) + ' · 随机种子 ' + world.seed + '</div>';
+  // ── 友军误伤置顶 ──────────────────────────────────────────────────────
+  // 战报里最该被看见的往往是"自己打自己"：旧版只把它混在时间线里，很容易被忽略。
+  const ff = a.friendlyFire || { torpedo: [], gun: [] };
+  const ffCount = ff.torpedo.length + ff.gun.length;
+  if (ffCount) {
+    const detail = [];
+    if (ff.torpedo.length) detail.push('鱼雷 ' + ff.torpedo.length + ' 次（' + ff.torpedo.slice(0, 4).map((x) => esc(x.shooterName || x.shooter) + '→' + esc(x.victimName || x.victim) + ' @' + x.t + 's').join('、') + (ff.torpedo.length > 4 ? '…' : '') + '）');
+    if (ff.gun.length) detail.push('炮弹 ' + ff.gun.length + ' 次（' + ff.gun.slice(0, 4).map((x) => esc(x.byName || x.by) + '→' + esc(x.victimName || x.victim) + ' @' + x.t + 's').join('、') + (ff.gun.length > 4 ? '…' : '') + '）');
+    h += '<div style="margin:10px 0 14px;padding:10px 12px;border:1px solid #c0392b;border-radius:8px;background:rgba(192,57,43,.08)">' +
+      '<b style="color:#c0392b">⚠ 友军误伤 ' + ffCount + ' 次</b>' +
+      '<div class="small" style="margin-top:4px">' + detail.join('；') + '</div></div>';
+  }
 
   const ids = Object.keys(a.per);
   const sunkA = ids.filter((id) => a.per[id].sunk && a.per[id].side === 'ALLIED').length;
@@ -134,11 +171,14 @@ export function buildAAR(world) {
     '</div>';
 
   // 逐舰表：被命中列之后新增"近失"列（以 sim 层 stats.hitsTaken 为被命中口径，近失单列不混算）
-  h += '<h4>逐舰明细</h4><table><thead><tr><th>舰名</th><th>阵营</th><th>舰种</th><th class="n">发射</th><th class="n">命中</th><th class="n">被命中</th><th class="n">近失</th><th class="n">鱼雷/命中</th><th class="n">夹叉</th><th class="n">进水m³</th><th>结局</th></tr></thead><tbody>';
+  h += '<h4>逐舰明细</h4><table><thead><tr><th>舰名</th><th>阵营</th><th>舰种</th><th class="n">发射</th><th class="n">命中</th><th class="n">命中率</th><th class="n">弹药余/耗</th><th class="n">被命中</th><th class="n">近失</th><th class="n">鱼雷/命中</th><th class="n">夹叉</th><th class="n">进水m³</th><th>结局</th></tr></thead><tbody>';
   for (const id of ids) {
     const p = a.per[id];
     h += '<tr><td class="nm">' + esc(p.name) + '</td><td>' + esc(SIDE_ZH[p.side] || p.side) + '</td><td>' + esc(TYPE_ZH[p.type] || p.type) + '</td>' +
-      '<td class="n">' + p.shots + '</td><td class="n">' + p.hits + '</td><td class="n">' + p.taken + '</td><td class="n">' + p.nearMisses + '</td><td class="n">' + p.torps + '/' + p.torpHits + '</td>' +
+      '<td class="n">' + p.shots + '</td><td class="n">' + p.hits + '</td>' +
+      '<td class="n">' + (p.shots ? (100 * p.hitRate).toFixed(1) + '%' : '—') + '</td>' +
+      '<td class="n">' + p.ammoLeft + ' / ' + p.ammoUsed + '</td>' +
+      '<td class="n">' + p.taken + '</td><td class="n">' + p.nearMisses + '</td><td class="n">' + p.torps + '/' + p.torpHits + '</td>' +
       '<td class="n">' + p.straddles + '</td><td class="n">' + p.flooding + '</td>' +
       '<td>' + (p.sunk ? '<span class="pill bad">沉没</span>' : '<span class="pill ok">在航</span>') + '</td></tr>';
   }
@@ -164,6 +204,7 @@ export function buildAAR(world) {
   h += '<h4 style="margin-top:16px">对照历史</h4><div class="small">' + esc(world.scenario.historicalNote || '（本剧本未提供史实注记）') + '</div>';
   h += '<div class="acts">' +
     '<button class="btn primary" data-act="extend">继续交战 +30 分钟</button>' +
+    '<button class="btn" data-act="seed-restart" title="同一剧本 + 同一随机种子：配合同样的指挥可复现本场战局">用此种子重开（' + world.seed + '）</button>' +
     '<button class="btn" data-act="export-aar">导出战报 JSON</button>' +
     '<button class="btn" data-act="export-replay">导出完整回放</button>' +
     '<button class="btn" data-act="close-overlay">关闭</button>' +

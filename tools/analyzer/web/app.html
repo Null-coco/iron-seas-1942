@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>回放分析器 · Replay Analyzer</title>
+<style>/*__REPORT_CSS__*/</style>
+<style>
+:root{--paper:#f7f4ec;--paper2:#fbf9f4;--ink:#1d232b;--muted:#6b675e;--rule:#d8d2c2;--red:#9d3126;--blue:#2f6fb2;--gold:#a97b1e}
+[hidden]{display:none!important}
+body{background:var(--paper)}
+.bar{position:sticky;top:0;z-index:20;background:rgba(247,244,236,.94);border-bottom:1px solid var(--rule);backdrop-filter:blur(6px)}
+.bar-in{max-width:1040px;margin:0 auto;padding:10px 36px;display:flex;align-items:center;gap:16px;justify-content:space-between;font-family:"PingFang SC",sans-serif}
+.brand{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;letter-spacing:.04em}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(157,49,38,.12)}
+.brand small{font-family:"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.22em;color:var(--muted);font-weight:400}
+.bar-actions{display:flex;align-items:center;gap:8px}
+.status{font-size:11.5px;color:var(--muted);margin-right:4px;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.page{max-width:1040px;margin:0 auto;padding:22px 36px 60px}
+.btn{font-family:"PingFang SC",sans-serif;font-size:13px;padding:8px 16px;border:1px solid #c9c1ae;background:var(--paper2);color:var(--ink);border-radius:3px;cursor:pointer;transition:.15s}
+.btn:hover{border-color:#a89f8a;background:#fffdf7}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#f7f4ec}
+.btn.primary:hover{background:#2b3440}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:8px 10px}
+.btn.ghost:hover{color:var(--ink);background:#efeade}
+.launcher{padding:34px 0 20px}
+.drop{border:1.5px dashed #c2b9a4;border-radius:6px;background:var(--paper2);padding:64px 26px;text-align:center;font-family:"PingFang SC",sans-serif;transition:.18s;outline:none}
+.drop:hover,.drop:focus{border-color:var(--ink);background:#fffdf7}
+.drop.over{border-color:var(--red);background:#fdf3ef;box-shadow:inset 0 0 0 1px rgba(157,49,38,.15)}
+.drop-ico{font-size:30px;line-height:1;color:var(--muted);margin-bottom:10px}
+.drop h1{font-family:"Songti SC","Noto Serif SC",serif;font-size:26px;margin:0 0 8px;font-weight:700}
+.drop p{font-family:"PingFang SC",sans-serif;font-size:13px;color:var(--muted);margin:0 0 6px}
+.drop code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:#efeade;padding:1px 5px;border-radius:3px}
+.drop-actions{display:flex;gap:10px;justify-content:center;margin:20px 0 14px}
+.hint{font-size:11.5px!important;color:#8f897c!important}
+.paste{margin-top:18px;border:1px solid var(--rule);background:var(--paper2);border-radius:6px;padding:14px 16px;font-family:"PingFang SC",sans-serif}
+.paste-hd{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:var(--muted);margin-bottom:8px;gap:10px;flex-wrap:wrap}
+.paste-hd b{color:var(--ink);font-weight:600;font-size:13px}
+#paste{width:100%;min-height:112px;resize:vertical;border:1px solid #cfc8b8;border-radius:4px;background:#fffdf7;color:var(--ink);padding:10px 12px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px;line-height:1.6;outline:none}
+#paste:focus{border-color:var(--ink);box-shadow:0 0 0 2px rgba(29,35,43,.08)}
+.paste-actions{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.paste-msg{font-size:11.5px;color:var(--muted)}
+.paste-msg.bad{color:var(--red)}
+.err{margin-top:16px;padding:12px 16px;border:1px solid rgba(157,49,38,.35);background:#fbf0ec;color:#7d2a21;font-family:"PingFang SC",sans-serif;font-size:13px;border-radius:4px;white-space:pre-wrap}
+.toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:12px 0;margin:26px 0 8px;font-family:"PingFang SC",sans-serif}
+.files{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted)}
+.chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--rule);background:var(--paper2);padding:4px 9px;border-radius:2px;font-size:11.5px}
+.chip b{font-weight:600;color:var(--ink)}
+.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.check{display:flex;gap:6px;flex-wrap:wrap}
+.pass,.fail{display:inline-flex;align-items:center;gap:5px;font-size:11px;letter-spacing:.04em;padding:4px 8px;border-radius:2px;border:1px solid}
+.pass{color:#2f6b45;border-color:rgba(47,107,69,.35);background:rgba(47,107,69,.07)}
+.fail{color:#9d3126;border-color:rgba(157,49,38,.4);background:rgba(157,49,38,.07);font-weight:600}
+.out .wrap{padding-top:6px}
+.foot{max-width:1040px;margin:0 auto;padding:18px 36px 40px;border-top:1px solid var(--rule);font-family:"PingFang SC",sans-serif;font-size:11px;color:var(--muted);display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.foot a{color:var(--red);text-decoration:none;border-bottom:1px solid rgba(157,49,38,.35)}
+@media (max-width:820px){.bar-in,.page,.foot{padding-left:18px;padding-right:18px}.drop{padding:40px 18px}}
+@media print{.bar,.launcher,.toolbar,.foot,.err{display:none!important}.page{max-width:none;padding:0}.out .wrap{padding:0}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand"><span class="dot"></span>回放分析器 <small>REPLAY ANALYZER</small></div>
+    <div class="bar-actions">
+      <span id="status" class="status" aria-live="polite">等待回放…</span>
+      <button id="btn-reset" class="btn ghost" hidden>重新选择</button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <section id="launcher" class="launcher">
+    <div id="drop" class="drop" tabindex="0" role="button" aria-label="选择回放文件，或把文件拖到这里">
+      <div class="drop-ico">↓</div>
+      <h1>把回放 JSON 拖到这里</h1>
+      <p>支持 <code>*-replay.json</code>（游戏内「界面 → 导出完整回放」或 <code>server/headless.mjs --replay</code> 的产物）。</p>
+      <p>可同时拖入 <code>ships_allied.json</code> / <code>ships_axis.json</code>，补全吨位、乘员、主炮口径。</p>
+      <div class="drop-actions">
+        <button id="btn-pick" class="btn primary">选择文件</button>
+        <button id="btn-demo" class="btn">载入内置示例</button>
+      </div>
+      <input id="file" type="file" accept="application/json,.json" multiple hidden>
+      <p class="hint">纯前端：文件不上传、不联网，解析与出图都在本页完成。也可用 <code>?replay=&lt;url&gt;</code> 直接载入。</p>
+    </div>
+    <div class="paste" id="pastebox">
+      <div class="paste-hd"><b>或直接粘贴回放 JSON</b><span>Ctrl / ⌘ + V，页面任意位置都可以</span></div>
+      <textarea id="paste" spellcheck="false" aria-label="粘贴回放 JSON" placeholder="把 replay.json 的内容粘贴到这里（以 { 开头；也可粘贴 ships_*.json 补舰船数据）"></textarea>
+      <div class="paste-actions">
+        <button id="btn-paste-go" class="btn primary">分析粘贴内容</button>
+        <button id="btn-paste-clear" class="btn">清空</button>
+        <span id="paste-msg" class="paste-msg" aria-live="polite"></span>
+      </div>
+    </div>
+    <div id="err" class="err" hidden></div>
+  </section>
+
+  <section id="toolbar" class="toolbar" hidden>
+    <div id="files" class="files"></div>
+    <div class="tools">
+      <div id="check" class="check"></div>
+      <button id="btn-download" class="btn primary">下载 HTML 战报</button>
+    </div>
+  </section>
+
+  <section id="out" class="out" aria-live="polite"></section>
+</main>
+
+<footer class="foot">
+  <span>与 CLI 同源构建（core / svg / render）· 单文件离线可用</span>
+</footer>
+
+<script>/*__MODULES__*/</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { replay: null, db: new Map(), model: null, files: [] };
+
+  function fmtBytes(n) {
+    if (!n && n !== 0) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+  function showErr(msg) {
+    var el = $('err');
+    el.hidden = !msg;
+    el.textContent = msg || '';
+  }
+  function setStatus(txt) { $('status').textContent = txt; }
+
+  function classify(obj, name) {
+    if (obj && Array.isArray(obj.events)) return { kind: 'replay', obj: obj, name: name };
+    if (obj && Array.isArray(obj.ships)) return { kind: 'db', obj: obj, name: name };
+    return { kind: 'unknown', obj: obj, name: name };
+  }
+
+  function readFile(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve({ name: file.name, size: file.size, text: String(fr.result) }); };
+      fr.onerror = function () { reject(new Error('读取失败：' + file.name)); };
+      fr.readAsText(file);
+    });
+  }
+
+  function handleFiles(list) {
+    var files = Array.prototype.slice.call(list || []);
+    if (!files.length) return;
+    showErr('');
+    Promise.all(files.map(readFile)).then(function (rows) {
+      var replayFound = null, dbAdded = 0, bad = [];
+      rows.forEach(function (row) {
+        var obj;
+        try { obj = JSON.parse(row.text); }
+        catch (e) { bad.push(row.name + ' 不是合法 JSON'); return; }
+        var c = classify(obj, row.name);
+        if (c.kind === 'replay') { replayFound = { obj: obj, name: row.name, size: row.size }; }
+        else if (c.kind === 'db') { shipDatabaseFromJson(obj, state.db); dbAdded++; }
+        else bad.push(row.name + ' 既不像回放（缺 events）也不像舰船库（缺 ships）');
+      });
+      if (bad.length) showErr(bad.join('\n'));
+      if (!replayFound) { if (!bad.length) showErr('没有找到回放：需要包含 events 数组的 *-replay.json'); return; }
+      state.replay = replayFound.obj;
+      state.files = [{ name: replayFound.name, size: replayFound.size, kind: 'replay' }];
+      if (dbAdded) state.files.push({ name: '舰船库 ×' + dbAdded, size: 0, kind: 'db' });
+      analyze();
+    }).catch(function (e) { showErr(e && e.message ? e.message : String(e)); });
+  }
+
+  // ── 粘贴导入 ──────────────────────────────────────────────────────────────
+  function setPasteMsg(msg, bad) {
+    var el = $('paste-msg');
+    el.textContent = msg || '';
+    el.className = 'paste-msg' + (bad ? ' bad' : '');
+  }
+  function launcherVisible() { return !$('launcher').hidden; }
+
+  function handlePastedText(text, source) {
+    var raw = String(text === undefined || text === null ? '' : text).trim();
+    if (!raw) return false;
+    var first = raw.charAt(0);
+    if (first !== '{' && first !== '[') {
+      if (source !== 'global' || launcherVisible()) setPasteMsg('粘贴内容不像 JSON（应以 { 或 [ 开头）', true);
+      return false;
+    }
+    if (raw.length > 80 * 1024 * 1024) {
+      setPasteMsg('内容超过 80 MB，请改用文件选择', true);
+      return false;
+    }
+    var obj;
+    try { obj = JSON.parse(raw); }
+    catch (e) {
+      if (source !== 'global' || launcherVisible()) setPasteMsg('不是合法 JSON：' + (e && e.message ? e.message : e), true);
+      return false;
+    }
+    var c = classify(obj, '粘贴内容');
+    if (c.kind === 'replay') {
+      state.replay = obj;
+      state.files = [{ name: '粘贴的回放' + (obj.scenario ? '：' + obj.scenario : ''), size: raw.length, kind: 'replay' }];
+      setPasteMsg('已解析回放（' + (raw.length / 1024).toFixed(0) + ' KB），正在分析…');
+      analyze();
+      return true;
+    }
+    if (c.kind === 'db') {
+      shipDatabaseFromJson(obj, state.db);
+      setPasteMsg('已载入舰船库（' + (raw.length / 1024).toFixed(0) + ' KB）' + (state.replay ? '，重新分析…' : '，再粘贴回放即可'));
+      if (state.replay) analyze();
+      return true;
+    }
+    if (source !== 'global' || launcherVisible()) setPasteMsg('既不是回放（缺 events）也不是舰船库（缺 ships）', true);
+    return false;
+  }
+
+  // 页面任意位置 Ctrl/Cmd+V：把剪贴板内容灌进文本框再分析
+  document.addEventListener('paste', function (e) {
+    var target = e.target;
+    if (target && target.id === 'paste') {
+      // 让默认粘贴完成后再解析
+      setTimeout(function () { handlePastedText($('paste').value, 'textarea'); }, 30);
+      return;
+    }
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    var text = e.clipboardData && e.clipboardData.getData('text');
+    if (!text) return;
+    e.preventDefault();
+    $('paste').value = text;
+    handlePastedText(text, 'global');
+  });
+
+  function analyze() {
+    if (!state.replay) return;
+    var model;
+    try { model = analyzeReplay(state.replay, { db: state.db }); }
+    catch (e) { showErr('分析失败：' + (e && e.message ? e.message : e)); return; }
+    state.model = model;
+    $('launcher').hidden = true;
+    $('toolbar').hidden = false;
+    $('btn-reset').hidden = false;
+    $('out').innerHTML = renderReportBody(model, {});
+    renderFiles(model);
+    renderCheck(model);
+    setStatus(model.meta.scenario + ' · 种子 ' + (model.meta.seed === undefined ? '?' : model.meta.seed) + ' · ' + Math.round(model.meta.duration) + ' s · ' + fmtNum(model.meta.events) + ' 事件');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderFiles(model) {
+    var html = '';
+    state.files.forEach(function (f) {
+      html += '<span class="chip"><b>' + esc(f.name) + '</b>' + (f.kind === 'replay' ? (f.size ? fmtBytes(f.size) + ' · ' : '') + fmtNum(model.meta.events) + ' 事件' : '') + '</span>';
+    });
+    $('files').innerHTML = html;
+  }
+
+  function esc(s) {
+    return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function renderCheck(model) {
+    var res = checkReplay(model);
+    var html = '';
+    res.rows.forEach(function (row) {
+      html += '<span class="' + (row.ok ? 'pass' : 'fail') + '" title="' + esc(row.detail) + '">' + (row.ok ? '✓' : '✕') + ' ' + esc(row.rule) + '</span>';
+    });
+    $('check').innerHTML = html;
+  }
+
+  function download() {
+    if (!state.model) return;
+    var html = renderHtml(state.model, {});
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = state.model.meta.scenario + '-' + (state.model.meta.seed === undefined ? 'x' : state.model.meta.seed) + '-分析.html';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  function reset() {
+    state.replay = null; state.model = null; state.files = []; state.db = new Map();
+    $('out').innerHTML = '';
+    $('toolbar').hidden = true;
+    $('launcher').hidden = false;
+    $('btn-reset').hidden = true;
+    $('check').innerHTML = '';
+    $('paste').value = '';
+    setPasteMsg('');
+    setStatus('等待回放…');
+    showErr('');
+    $('file').value = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── 内置示例：按 SBX-604 的数字合成一份紧凑回放（只用于演示） ──────────────
+  function buildDemoReplay() {
+    var ev = [], seq = 0;
+    function E(o) { o.seq = ++seq; ev.push(o); return o; }
+    E({ type: 'sim.start', t: 0, scenario: 'sandbox_custom', seed: 604 });
+    var ships = [
+      { id: 'sbx_allied_1', name: '衣阿华', side: 'ALLIED', cal: 406, rounds: 348, salvos: 48, first: 27.0, last: 631.9, x0: -495, y0: 494, x1: -685, y1: 7472 },
+      { id: 'sbx_allied_2', name: '新奥尔良', side: 'ALLIED', cal: 203, rounds: 318, salvos: 45, first: 21.0, last: 636.6, x0: 1, y0: 1, x1: -5664, y1: 771 },
+      { id: 'sbx_allied_3', name: '弗莱彻', side: 'ALLIED', cal: 127, rounds: 255, salvos: 51, first: 15.2, last: 638.2, x0: 496, y0: -492, x1: 4670, y1: 2799 },
+      { id: 'sbx_axis_4', name: '大和', side: 'AXIS', cal: 460, rounds: 21, salvos: 3, first: 38.3, last: 75.7, x0: 4138, y0: 492, x1: 3457, y1: -72 },
+      { id: 'sbx_axis_5', name: '高雄', side: 'AXIS', cal: 203, rounds: 170, salvos: 17, first: 23.0, last: 264.0, x0: 4633, y0: -1, x1: 6038, y1: -3486 },
+      { id: 'sbx_axis_6', name: '阳炎', side: 'AXIS', cal: 127, rounds: 86, salvos: 24, first: 17.9, last: 268.6, x0: 5128, y0: -494, x1: 3644, y1: -120 }
+    ];
+    ships.forEach(function (s) {
+      var n = Math.max(1, s.rounds - 1);
+      var perSalvo = s.rounds / s.salvos;
+      for (var i = 0; i < s.rounds; i++) {
+        var t = s.first + (s.last - s.first) * (i / n);
+        E({ type: 'gun.fire', t: t, ship: s.id, name: s.name, side: s.side, ammo: 'HE', caliberMM: s.cal, salvoId: s.id + '#S' + Math.floor(i / perSalvo) });
+        if (i % Math.ceil(perSalvo) === 0) E({ type: 'gun.salvo.away', t: t, ship: s.id, name: s.name, side: s.side, gunsFired: Math.min(9, Math.round(perSalvo)), salvoId: s.id + '#S' + Math.floor(i / perSalvo) });
+      }
+    });
+    // 命中（46 发，按真实归属）
+    var hitPlan = [
+      ['sbx_allied_3', 'sbx_axis_6', 23, 210, 610], ['sbx_allied_3', 'sbx_axis_4', 4, 81.6, 81.8], ['sbx_allied_3', 'sbx_axis_5', 1, 128.5, 128.5],
+      ['sbx_allied_2', 'sbx_axis_6', 6, 263.8, 573.1], ['sbx_allied_2', 'sbx_axis_4', 3, 82.8, 82.8],
+      ['sbx_allied_1', 'sbx_axis_6', 1, 352.7, 352.7], ['sbx_axis_5', 'sbx_allied_1', 2, 67.1, 102.3],
+      ['sbx_axis_6', 'sbx_allied_3', 6, 104.0, 226.3]
+    ];
+    hitPlan.forEach(function (p) {
+      for (var i = 0; i < p[2]; i++) {
+        var t = p[3] + (p[4] - p[3]) * (i / Math.max(1, p[2] - 1));
+        E({ type: 'gun.hit', t: t, byShip: p[0], byShipName: nameOf(p[0]), ship: p[1], name: nameOf(p[1]), caliberMM: calOf(p[0]), side: 'AXIS', hit: { kind: 'SHELL', shipSide: sideOf(p[1]), attackerSide: sideOf(p[0]), attackerName: nameOf(p[0]) } });
+      }
+    });
+    function nameOf(id) { for (var i = 0; i < ships.length; i++) if (ships[i].id === id) return ships[i].name; return id; }
+    function sideOf(id) { for (var i = 0; i < ships.length; i++) if (ships[i].id === id) return ships[i].side; return 'ALLIED'; }
+    function calOf(id) { for (var i = 0; i < ships.length; i++) if (ships[i].id === id) return ships[i].cal; return 127; }
+
+    // 鱼雷：6 次发射 20 管，4 条全部命中友舰大和
+    E({ type: 'torp.launch', t: 12.2, ship: 'sbx_allied_3', name: '弗莱彻', side: 'ALLIED', tubes: 3, track: 'T5', bearingDeg: 76, accepted: true });
+    E({ type: 'torp.launch', t: 12.2, ship: 'sbx_axis_5', name: '高雄', side: 'AXIS', tubes: 4, track: 'T8', bearingDeg: 265, accepted: true });
+    E({ type: 'torp.launch', t: 174.2, ship: 'sbx_axis_6', name: '阳炎', side: 'AXIS', tubes: 4, track: 'T8', bearingDeg: 31, accepted: true });
+    E({ type: 'torp.launch', t: 255.2, ship: 'sbx_allied_3', name: '弗莱彻', side: 'ALLIED', tubes: 2, track: 'T6', bearingDeg: 97, accepted: true });
+    E({ type: 'torp.launch', t: 255.2, ship: 'sbx_axis_5', name: '高雄', side: 'AXIS', tubes: 4, track: 'T9', bearingDeg: 332, accepted: true });
+    E({ type: 'torp.launch', t: 473.8, ship: 'sbx_allied_3', name: '弗莱彻', side: 'ALLIED', tubes: 3, track: 'T5', bearingDeg: 158, accepted: true });
+    [[45.4, 'TP11', 0.313], [47.0, 'TP12', 0.53], [48.4, 'TP13', 0.784], [50.4, 'TP14', 0.996]].forEach(function (h) {
+      E({ type: 'torp.hit', t: h[0], ship: 'sbx_axis_4', name: '大和', shooter: 'sbx_axis_5', shooterName: '高雄', shooterSide: 'AXIS', friendly: true, torp: h[1], side: 'PORT', compartment: 7, x_frac: h[2], warheadKg: 490, tntKg: 620 });
+      E({ type: 'dam.casualties', t: h[0], ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', killed: 78, crewNow: 2672, cause: 'TORPEDO' });
+    });
+    ['PREMATURE', 'UNDER_RUN', 'RANGE_EXHAUSTED', 'PREMATURE', 'RANGE_EXHAUSTED', 'RANGE_EXHAUSTED', 'PREMATURE', 'UNDER_RUN', 'PREMATURE'].forEach(function (r, i) {
+      E({ type: 'torp.miss', t: 70 + i * 70, ship: i % 2 ? 'sbx_allied_3' : 'sbx_axis_5', side: i % 2 ? 'ALLIED' : 'AXIS', reason: r, runM: 2000 });
+    });
+
+    // 损伤链：进水/损管/横倾/起火/殉爆/沉没
+    E({ type: 'dam.dc', t: 50.5, ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', priority: 'magazine', inflowM3s: 53.09, pumpM3s: 0.67, crewPct: 0.887, speedCapKn: 17.2 });
+    E({ type: 'dam.flood', t: 50.5, ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', compartment: 7, floodedM3: 1381, rateM3s: 53.09 });
+    E({ type: 'dam.list', t: 80.9, ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', list: 1.7, draft: 10.6, gm: 2.9 });
+    E({ type: 'dam.fire', t: 47.0, ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', intensity: 0.33, cause: '鱼雷燃油/弹药引燃' });
+    E({ type: 'dam.magazine', t: 82.8, ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', result: 'detonation', killed: 2262, cause: '弹药库殉爆' });
+    E({ type: 'ship.sink', t: 82.8, ship: 'sbx_axis_4', name: '大和', side: 'AXIS', cause: '弹药库殉爆', catastrophic: true, x: 3457, y: -72 });
+    for (var i = 0; i < 6; i++) {
+      E({ type: 'ship.collide', t: 75.1 + i * 5.2, a: 'sbx_axis_5', b: 'sbx_axis_6', rel: 5.8 + i * 0.7 });
+    }
+    E({ type: 'dam.dc', t: 381.1, ship: 'sbx_axis_6', name: '阳炎', victimSide: 'AXIS', priority: 'flooding', inflowM3s: 0.48, pumpM3s: 0, crewPct: 0.717, speedCapKn: 15 });
+    E({ type: 'dam.list', t: 639.2, ship: 'sbx_axis_6', name: '阳炎', victimSide: 'AXIS', list: 8.0, draft: 4.1, gm: 0.74 });
+    E({ type: 'dam.flood', t: 639.2, ship: 'sbx_axis_6', name: '阳炎', victimSide: 'AXIS', compartment: 9, floodedM3: 201, rateM3s: 0.48 });
+    E({ type: 'dam.fire', t: 352.7, ship: 'sbx_axis_6', name: '阳炎', victimSide: 'AXIS', intensity: 0.49, cause: '命中引燃' });
+    [[34, 'sbx_allied_1', 67.1], [7, 'sbx_allied_3', 226.3], [1, 'sbx_axis_5', 128.5]].forEach(function (c) {
+      E({ type: 'dam.casualties', t: c[2], ship: c[1], name: nameOf(c[1]), victimSide: sideOf(c[1]), killed: c[0], cause: 'SHELL' });
+    });
+    // 阳炎伤亡累计
+    for (var k = 0; k < 17; k++) E({ type: 'dam.casualties', t: 230 + k * 20, ship: 'sbx_axis_6', name: '阳炎', victimSide: 'AXIS', killed: 5, cause: 'SHELL' });
+    E({ type: 'dam.casualties', t: 82.8, ship: 'sbx_axis_4', name: '大和', victimSide: 'AXIS', killed: 65, cause: 'SHELL' });
+
+    // 指挥与 AI 决策（含判型漂移文本）
+    var kinds = { SET_COURSE: 48, SMOKE: 145, SET_SPEED: 22, FIRE: 16, ASSIGN_TARGET: 6, FORMATION: 5, LAUNCH_TORPEDO: 6, DC_PRIORITY: 4 };
+    Object.keys(kinds).forEach(function (kind) {
+      var n = kinds[kind];
+      var side = kind === 'SET_COURSE' || kind === 'FIRE' ? 'ALLIED' : 'AXIS';
+      var spanEnd = side === 'AXIS' ? 265 : 630;
+      for (var j = 0; j < n; j++) {
+        var t = 8 + (spanEnd - 8) * (j / Math.max(1, n - 1));
+        E({ type: 'order.issue', t: t, cmd: { id: 'c' + seq, side: side, shipId: side === 'AXIS' ? 'sbx_axis_5' : 'sbx_allied_1', kind: kind, params: {} } });
+      }
+    });
+    E({ type: 'order.issue', t: 265.1, cmd: { id: 'w1', side: 'AXIS', shipId: 'sbx_axis_6', kind: 'WITHDRAW', params: {} } });
+    E({ type: 'order.issue', t: 267.3, cmd: { id: 'w2', side: 'AXIS', shipId: 'sbx_axis_6', kind: 'CEASE_FIRE', params: {} } });
+    [['集火UNKNOWN(T5)', 8.1], ['集火BB(T5)', 48.6], ['集火BC(T5)', 178.2], ['集火CA(T5)', 226.8], ['集火CL(T5)', 469.8]].forEach(function (a) {
+      E({ type: 'ai.decision', t: a[1], side: 'ALLIED', phase: 'ENGAGE', commands: 0, reasoning: '【态势】交战 · ' + a[0] });
+    });
+    [['T5', 1.5, 'SONAR'], ['T6', 1.5, 'SONAR'], ['T7', 1.5, 'SONAR'], ['T8', 2.2, 'VISUAL'], ['T9', 214.2, 'RADAR'], ['T10', 267.0, 'SONAR'], ['T11', 270.3, 'RADAR'], ['T12', 273.0, 'SONAR'], ['T13', 280.5, 'RADAR'], ['T14', 556.5, 'SONAR'], ['T15', 630.0, 'SONAR']].forEach(function (tr) {
+      E({ type: 'sensor.detect', t: tr[1], side: 'AXIS', ship: 'sbx_axis_5', target: tr[0], source: tr[2], classifiedAs: 'UNKNOWN' });
+    });
+
+    // 快照：128 帧线性插值（大和沉没后停在沉没点）
+    var snaps = [];
+    for (var f = 0; f < 128; f++) {
+      var t = 0.1 + f * 5.0;
+      snaps.push({ t: t, ships: ships.map(function (s) {
+        var u = Math.min(1, t / 640.3);
+        var sunk = s.id === 'sbx_axis_4' && t >= 82.8;
+        return { id: s.id, x: s.x0 + (s.x1 - s.x0) * (sunk ? 82.8 / 640.3 : u), y: s.y0 + (s.y1 - s.y0) * (sunk ? 82.8 / 640.3 : u), hd: 225, sp: sunk ? 0 : 24, list: 0, fl: 0, af: !sunk, fires: 0 };
+      }), env: { seaState: 1, windDir: 250, windKn: 2.2, visNm: 15 } });
+    }
+    return { version: 1, scenario: 'sandbox_custom', seed: 604, startedAt: 0, endedAt: 640.3, snapshots: snaps, events: ev, commands: [], result: { over: false, winner: null, text: '' }, retention: { limit: 60000, hardLimit: 120000, history: ev.length, totalEmitted: ev.length, droppedNoise: 0, droppedCritical: 0 } };
+  }
+
+  function demoDb() {
+    return { ships: [
+      { nameZh: '衣阿华', type: 'BB', class: 'Iowa', nation: 'US', year: 1943, displacementFull_t: 57500, crew: 2788, speedMax_kn: 33, armor: { belt_mm: 307 }, guns: [{ role: 'main', bore_mm: 406 }] },
+      { nameZh: '新奥尔良', type: 'CA', class: 'NewOrleans', nation: 'US', year: 1942, displacementFull_t: 12790, crew: 870, speedMax_kn: 32.7, armor: { belt_mm: 127 }, guns: [{ role: 'main', bore_mm: 203 }] },
+      { nameZh: '弗莱彻', type: 'DD', class: 'Fletcher', nation: 'US', year: 1943, displacementFull_t: 2924, crew: 329, speedMax_kn: 36.5, armor: { belt_mm: 13 }, guns: [{ role: 'main', bore_mm: 127 }] },
+      { nameZh: '大和', type: 'BB', class: 'Yamato', nation: 'JP', year: 1941, displacementFull_t: 72800, crew: 2750, speedMax_kn: 27.5, armor: { belt_mm: 410 }, guns: [{ role: 'main', bore_mm: 460 }] },
+      { nameZh: '高雄', type: 'CA', class: 'Takao', nation: 'JP', year: 1942, displacementFull_t: 15490, crew: 920, speedMax_kn: 34.2, armor: { belt_mm: 127 }, guns: [{ role: 'main', bore_mm: 203 }] },
+      { nameZh: '阳炎', type: 'DD', class: 'Kagero', nation: 'JP', year: 1942, displacementFull_t: 2500, crew: 240, speedMax_kn: 35, armor: { belt_mm: 0 }, guns: [{ role: 'main', bore_mm: 127 }] }
+    ] };
+  }
+
+  function loadDemo() {
+    showErr('');
+    state.db = shipDatabaseFromJson(demoDb());
+    state.files = [{ name: '内置示例（合成数据）', size: 0, kind: 'replay' }, { name: '舰船库（内置）', size: 0, kind: 'db' }];
+    state.replay = buildDemoReplay();
+    analyze();
+    setStatus('内置示例（合成数据）· 故意复刻友军雷击局 → 检查项 FAIL 是预期结果');
+  }
+
+  // ── 事件绑定 ──────────────────────────────────────────────────────────────
+  var drop = $('drop'), fileInput = $('file');
+  drop.addEventListener('click', function (e) { if (e.target.tagName !== 'BUTTON') fileInput.click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  $('btn-pick').addEventListener('click', function (e) { e.stopPropagation(); fileInput.click(); });
+  $('btn-demo').addEventListener('click', function (e) { e.stopPropagation(); loadDemo(); });
+  fileInput.addEventListener('change', function () { handleFiles(fileInput.files); });
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    drop.addEventListener(evt, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    drop.addEventListener(evt, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    var dt = e.dataTransfer;
+    if (!dt) return;
+    if (dt.files && dt.files.length) { handleFiles(dt.files); return; }
+    var text = dt.getData('text/plain');
+    if (text) { $('paste').value = text; handlePastedText(text, 'drop'); }
+  });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+  $('btn-paste-go').addEventListener('click', function () { handlePastedText($('paste').value, 'button'); });
+  $('btn-paste-clear').addEventListener('click', function () { $('paste').value = ''; setPasteMsg(''); });
+  $('btn-download').addEventListener('click', download);
+  $('btn-reset').addEventListener('click', reset);
+
+  // 供自动化测试/调试：直接提交一段文本，等价于粘贴
+  window.__analyzerPaste = function (text) { $('paste').value = text; return handlePastedText(text, 'api'); };
+
+  if (location.search.indexOf('demo=1') >= 0) {
+    loadDemo();
+  } else if (location.search.indexOf('replay=') >= 0) {
+    var src = new URLSearchParams(location.search).get('replay');
+    setStatus('正在载入 ' + src + ' …');
+    fetch(src).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (obj) {
+      if (!obj || !Array.isArray(obj.events)) throw new Error('该地址不是回放（缺少 events 数组）');
+      state.replay = obj;
+      state.files = [{ name: src.split('/').pop() || src, size: 0, kind: 'replay' }];
+      analyze();
+    }).catch(function (e) { showErr('载入失败：' + (e && e.message ? e.message : e)); setStatus('等待回放…'); });
+  }
+})();
+</script>
+</body>
+</html>

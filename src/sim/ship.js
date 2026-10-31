@@ -25,7 +25,14 @@ export class Ship {
     this.speed = spec.speed !== undefined ? spec.speed : 0; // kn
     this.rudder = 0; // deg, + 右
     this.turnRate = 0; // deg/s
-    this.commanded = { heading: this.heading, speed: this.speed, rudder: null, firing: false, targetTrackId: null };
+    // 火力命令分主/副炮两套通道：主炮用 firing/targetTrackId/fireAmmo，
+    // 副炮用 secFiring/secTargetTrackId/secAmmo。两边独立节流与目标，
+    // 才能同时"主炮对主力舰、副炮补刀驱逐舰"（旧实现只有单通道，副炮永远闲置）。
+    this.commanded = {
+      heading: this.heading, speed: this.speed, rudder: null,
+      firing: false, targetTrackId: null,
+      secFiring: false, secTargetTrackId: null, secAmmo: 'HE', secSalvoes: Infinity,
+    };
     this.engineOrder = { kn: this.speed, telegraph: 'STOP' };
 
     // ---- 姿态 ----
@@ -299,11 +306,38 @@ export class Ship {
   applyOrder(cmd) {
     const p = cmd.params || {};
     switch (cmd.kind) {
-      case 'SET_COURSE': this.commanded.heading = normDeg(p.heading); this.commanded.rudder = null; return true;
-      case 'SET_SPEED': this.commanded.speed = clamp(p.kn, 0, this.data.speedMax_kn || 30); this.engineOrder.kn = this.commanded.speed; return true;
-      case 'SET_RUDDER': this.commanded.rudder = clamp(p.deg, -(this.data.rudderAngleMax_deg || 35), (this.data.rudderAngleMax_deg || 35)); return true;
-      case 'FIRE': this.commanded.firing = true; this.commanded.targetTrackId = p.trackId || this.commanded.targetTrackId; this.commanded.fireAmmo = p.ammo || 'AP'; this.commanded.salvoes = p.salvoes === undefined ? Infinity : p.salvoes; this.commanded.fireBattery = p.battery || 'main'; return true;
-      case 'CEASE_FIRE': this.commanded.firing = false; return true;
+      // 契约防护：命令参数必须是有限数。NaN/Infinity 一旦进入 commanded.heading，会经
+      // 自动操舵（err = normDeg180(commanded.heading - heading)）污染 rudder/turnRate/heading/pos，
+      // 再由编队形心（centroid）扩散到全队，一 tick 内整支舰队坐标变 NaN。这里直接拒收非法命令。
+      case 'SET_COURSE': {
+        if (!Number.isFinite(p.heading)) return false;
+        this.commanded.heading = normDeg(p.heading); this.commanded.rudder = null; return true;
+      }
+      case 'SET_SPEED': {
+        if (!Number.isFinite(p.kn)) return false;
+        this.commanded.speed = clamp(p.kn, 0, this.data.speedMax_kn || 30); this.engineOrder.kn = this.commanded.speed; return true;
+      }
+      case 'SET_RUDDER': {
+        if (!Number.isFinite(p.deg)) return false;
+        this.commanded.rudder = clamp(p.deg, -(this.data.rudderAngleMax_deg || 35), (this.data.rudderAngleMax_deg || 35)); return true;
+      }
+      case 'FIRE': {
+        // battery='secondary' 走副炮通道，不覆盖主炮的射击状态
+        if (p.battery === 'secondary') {
+          this.commanded.secFiring = true;
+          this.commanded.secTargetTrackId = p.trackId || this.commanded.secTargetTrackId;
+          this.commanded.secAmmo = p.ammo || 'HE';
+          this.commanded.secSalvoes = p.salvoes === undefined ? Infinity : p.salvoes;
+        } else {
+          this.commanded.firing = true;
+          this.commanded.targetTrackId = p.trackId || this.commanded.targetTrackId;
+          this.commanded.fireAmmo = p.ammo || 'AP';
+          this.commanded.salvoes = p.salvoes === undefined ? Infinity : p.salvoes;
+          this.commanded.fireBattery = p.battery || 'main';
+        }
+        return true;
+      }
+      case 'CEASE_FIRE': this.commanded.firing = false; this.commanded.secFiring = false; return true;
       case 'SMOKE': this.flags.smokeOn = !!p.on; return true;
       case 'SEARCHLIGHT': this.flags.searchlight.on = !!p.on; if (p.bearing !== undefined) this.flags.searchlight.bearing = normDeg(p.bearing); return true;
       case 'RADAR': for (const s of this.sensors) if (s.srcKind === 'RADAR') s.on = !!p.on; this.flags.radarOn = !!p.on; return true;

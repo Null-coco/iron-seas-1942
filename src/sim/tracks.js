@@ -211,6 +211,10 @@ export class TrackManager {
       let best = null, bd = Infinity;
       for (const tr of this.tracks) {
         if (tr.dead || tr.side !== obs.side) continue;
+        // 同目标才能更新：range-only 雷达分支不经过 _associate，若这里不设防，
+        // 同一部雷达会把不同舰的距离观测写进同一条航迹（旧 bug：一条航迹 trueIds 里
+        // 攒出 BB+CA+DD，判型与火控全部错乱）。
+        if (obs.targetId && tr._trueIds && tr._trueIds.size > 0 && !tr._trueIds.has(obs.targetId)) continue;
         if (t - tr.tLast > REACQUIRE_AGE_S) continue;
         const d = Math.abs(dist2d(observerPos, tr.pos) - obs.rangeM);
         if (d < gate && d < bd) { bd = d; best = tr; }
@@ -219,7 +223,10 @@ export class TrackManager {
       return this._updateRangeOnly(best, obs, t, observerPos);
     }
 
-    const track = this._associate(obs, pos, bearingOnly, t, observerPos);
+    let track = this._associate(obs, pos, bearingOnly, t, observerPos);
+    // 最终兜底：关联器若把"另一艘实舰的观测"配到已有航迹上，宁可另起一条新航迹，
+    // 也不能污染既有航迹的真值台账（否则这条航迹会变成多舰混合的"融合幽灵"）。
+    if (track && obs.targetId && track._trueIds && track._trueIds.size > 0 && !track._trueIds.has(obs.targetId)) track = null;
     if (track) return this._updateTrack(track, obs, pos, bearingOnly, t, observerPos);
     return this._createTrack(obs, pos, bearingOnly, t, observerPos);
   }
@@ -229,6 +236,14 @@ export class TrackManager {
     let best = null, bestScore = Infinity;
     for (const tr of this.tracks) {
       if (tr.dead || tr.side !== obs.side) continue;
+      // ── 关联阶段的"融合幽灵"防护 ──────────────────────────────────────
+      // 关联门限 gate = 3·baseSigma + …，而被动水听航迹的协方差是"径向完全未知"
+      // （sr≈8 km），baseSigma≈8 km → gate 可达 24 km。于是一条粗糙的水听航迹会把
+      // 编队里所有舰的观测全部吸走，_trueIds 里同时出现 BB+CA+DD——这条航迹的 RCS/
+      // 尺寸是三者混合，判型只能在 BB/CA/CL/DD 之间逐 tick 乱跳，火控也按同一条航迹
+      // 给不同目标解算（第三方战报 SBX-604 的"看得见、判不明、打不出"）。
+      // 已绑定某艘实舰的航迹，不能再吸收另一艘实舰的观测。
+      if (obs.targetId && tr._trueIds && tr._trueIds.size > 0 && !tr._trueIds.has(obs.targetId)) continue;
       const age = t - tr.tLast;
       if (age > REACQUIRE_AGE_S) continue;
       const dtPred = Math.max(0, age);
@@ -677,7 +692,8 @@ export class TrackManager {
       hist.push(t);
       if (hist.length > 80) hist.shift();
     }
-    if (obs.targetId) tr._trueIds.add(obs.targetId);
+    // 只允许"尚未绑定实舰"或"就是同一艘实舰"的观测写入真值台账（第三道防护）
+    if (obs.targetId && (tr._trueIds.size === 0 || tr._trueIds.has(obs.targetId))) tr._trueIds.add(obs.targetId);
     tr.hits += 1;
     tr.tLast = Math.max(tr.tLast, t);
     tr.ageS = Math.max(0, t - tr.tLast);
@@ -766,14 +782,29 @@ export class TrackManager {
     tr.classProbs = probs;
     tr.idConfidence = clamp(probs[top] * idGate * durGate, 0, idCap);
     if (tr.idConfidence >= 0.50 && dur >= 60) {
-      tr.classifiedAs = top;
+      this._voteClass(tr, top);
     } else if (tr.idConfidence >= 0.18 && dur >= 20) {
       // 1942 年识别习惯：先分小型/中型/大型，再定舰型
       const size = f.logRcs ? Math.exp(f.logRcs.v) : (f.logArea ? Math.exp(f.logArea.v) / 0.55 : 4200);
-      tr.classifiedAs = size < 2200 ? 'DD' : (size < 8000 ? 'CA' : 'BB');
+      this._voteClass(tr, size < 2200 ? 'DD' : (size < 8000 ? 'CA' : 'BB'));
     } else {
-      tr.classifiedAs = 'UNKNOWN';
+      this._voteClass(tr, 'UNKNOWN');
     }
+  }
+
+  // 判型投票（滞回）：任何判型变化都要求同一新结论连续 N 次成为最优。
+  // 【为什么需要】旧实现只有"高置信度"分支做了 3 票滞回，中间分支（idConfidence 0.18~0.50）
+  // 和低置信度分支都是每个 tick 直接赋值。RCS 估算与 idConfidence 在小范围内抖动时，
+  // classifiedAs 于是在 BB↔CA↔CL↔DD↔UNKNOWN 之间逐 tick 翻转——第三方战报 SBX-604 记录
+  // 同盟对 T5 的判型走完了 BB→BC→CA→CL 全程，轴心把 57,500 吨的衣阿华当成"航空母舰"追着打。
+  // 现在统一走投票：UNKNOWN 与已判型之间的变化要 2 票，已判型之间的改判要 3 票。
+  _voteClass(tr, candidate) {
+    const cur = tr.classifiedAs || 'UNKNOWN';
+    if (candidate === cur) { tr._clsCandidate = null; tr._clsVotes = 0; return; }
+    const need = (cur === 'UNKNOWN' || candidate === 'UNKNOWN') ? 2 : 3;
+    if (tr._clsCandidate !== candidate) { tr._clsCandidate = candidate; tr._clsVotes = 0; }
+    tr._clsVotes = (tr._clsVotes || 0) + 1;
+    if (tr._clsVotes >= need) { tr.classifiedAs = candidate; tr._clsCandidate = null; tr._clsVotes = 0; }
   }
 
   // ── 不确定度椭圆（1σ）─────────────────────────────────────────────────────
@@ -867,7 +898,33 @@ export class TrackManager {
           if (Math.abs(normDeg180(a.courseDeg - b.courseDeg)) > 40) continue;
           if (Math.abs(a.speedKn - b.speedKn) > 9) continue;
         }
-        const keep = a.tFirst <= b.tFirst ? a : b;
+        // ── "同一目标"证据（本次修复的核心）───────────────────────────────
+        // 只凭距离+航向+航速会闯大祸：被动水听航迹的 errM≈8 km 把 gate 放大到 20 km，
+        // 于是同一编队里相距 700 m 的 3 艘不同军舰被合并成**一条**航迹（trueIds 同时含
+        // BB+CA+DD）。这条"融合幽灵"的 RCS/尺寸是三者混合，判型只能在 BB/CA/CL/DD 之间
+        // 每个 tick 乱跳（第三方战报 SBX-604：同盟对 T5 走完 BB→BC→CA→CL，轴心把 57,500 t
+        // 的衣阿华当航母追着打），火控也按同一条航迹给不同目标解算。
+        // 判据一：尺寸估计不能自相矛盾（RCS 相差 3 倍以上基本不是同一艘舰）。
+        const rcsA = a.features && a.features.rcsM2, rcsB = b.features && b.features.rcsM2;
+        if (rcsA > 0 && rcsB > 0) {
+          const ratio = Math.max(rcsA, rcsB) / Math.max(1, Math.min(rcsA, rcsB));
+          if (ratio > 3) continue;
+        }
+        // 判据二：真值兜底——只有"都能证明跟踪同一艘实舰"的两条航迹才合并。
+        // 任一方尚未绑定实舰（_trueIds 为空，例如杂波/无目标的共享报告）时一律不合并：
+        // 否则这条空壳航迹会依次吞掉不同舰的航迹，把 trueIds 攒成 BB+CA+DD。
+        // （引擎知道航迹对应哪艘实舰；这里只用于阻止"把不同舰合并"这一物理上不可能的操作。）
+        if (!a._trueIds || !b._trueIds || a._trueIds.size === 0 || b._trueIds.size === 0) continue;
+        {
+          let overlap = false;
+          for (const id of a._trueIds) { if (b._trueIds.has(id)) { overlap = true; break; } }
+          if (!overlap) continue;
+        }
+        // 保留"定位更准"的一方（errM 更小），而不是"起批更早"的一方。
+        // 旧逻辑按 tFirst 保留更早的航迹：被动水听器（径向未知、errM≈8km）先发现目标，
+        // 会"吞掉"后起的雷达航迹（errM≈0.5km），合并后位置被拉偏、雷达航迹 id 消失，
+        // 于是同一目标反复翻新航迹 id（AI 目标 id ↔ 火控追踪 id 对不上而停火）。
+        const keep = (a.errM <= b.errM) ? a : b;
         const drop = keep === a ? b : a;
         const w = clamp(keep.confidence / Math.max(1e-3, keep.confidence + drop.confidence), 0.2, 0.8);
         keep.pos.x = keep.pos.x * w + drop.pos.x * (1 - w);
@@ -1013,6 +1070,7 @@ export class TrackManager {
       tFirst: tr.tFirst, tLast: tr.tLast,
       shared: !isOwner, reportAgeS: +reportAgeS.toFixed(1),
       sourceShips: tr.sourceShips.slice(),
+      trueIds: tr._trueIds ? Array.from(tr._trueIds) : [],   // 真实舰 id（供火控按"同一真实目标"匹配，绕开航迹 id 翻新）
     };
   }
 

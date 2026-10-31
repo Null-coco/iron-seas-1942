@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-22T14:24:31.939Z",
+ "generatedAt": "2026-10-25T12:24:31.821Z",
  "rows": [
   {
    "scenario": "denmark_strait_1941",
@@ -8,9 +8,9 @@
    "t": 900,
    "winner": "NONE",
    "sinks": 0,
-   "gunHits": 55,
+   "gunHits": 65,
    "torpHits": 0,
-   "magazine": 4,
+   "magazine": 15,
    "friendlyFire": 0,
    "shipsAfloat": 6,
    "shipsTotal": 6
@@ -22,10 +22,10 @@
    "t": 900,
    "winner": "NONE",
    "sinks": 0,
-   "gunHits": 116,
+   "gunHits": 22,
    "torpHits": 0,
-   "magazine": 3,
-   "friendlyFire": 36,
+   "magazine": 1,
+   "friendlyFire": 8,
    "shipsAfloat": 6,
    "shipsTotal": 6
   },
@@ -35,12 +35,12 @@
    "seconds": 900,
    "t": 900,
    "winner": "NONE",
-   "sinks": 1,
-   "gunHits": 32,
-   "torpHits": 4,
-   "magazine": 1,
+   "sinks": 0,
+   "gunHits": 55,
+   "torpHits": 0,
+   "magazine": 9,
    "friendlyFire": 0,
-   "shipsAfloat": 16,
+   "shipsAfloat": 17,
    "shipsTotal": 17
   },
   {
@@ -49,12 +49,12 @@
    "seconds": 900,
    "t": 900,
    "winner": "NONE",
-   "sinks": 0,
-   "gunHits": 36,
+   "sinks": 1,
+   "gunHits": 41,
    "torpHits": 0,
-   "magazine": 0,
+   "magazine": 6,
    "friendlyFire": 0,
-   "shipsAfloat": 17,
+   "shipsAfloat": 16,
    "shipsTotal": 17
   }
  ]

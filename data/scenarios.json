@@ -19,7 +19,8 @@
   },
   "_classManifest": {
     "AdmiralHipper": [
-      "denmark_strait_1941"
+      "denmark_strait_1941",
+      "denmark_strait_1941_duel"
     ],
     "Aoba": [
       "savo_island_1942"
@@ -34,7 +35,8 @@
       "casablanca_1942"
     ],
     "Bismarck": [
-      "denmark_strait_1941"
+      "denmark_strait_1941",
+      "denmark_strait_1941_duel"
     ],
     "Brooklyn": [
       "first_guadalcanal_1942",
@@ -69,7 +71,8 @@
       "surigao_strait_1944"
     ],
     "Hood": [
-      "denmark_strait_1941"
+      "denmark_strait_1941",
+      "denmark_strait_1941_duel"
     ],
     "JeanBart": [
       "casablanca_1942"
@@ -83,6 +86,7 @@
     ],
     "KingGeorgeV": [
       "denmark_strait_1941",
+      "denmark_strait_1941_duel",
       "north_cape_1943"
     ],
     "Kongo": [
@@ -320,6 +324,145 @@
         "AdmiralHipper",
         "Bismarck",
         "County",
+        "Hood",
+        "KingGeorgeV"
+      ],
+      "triggers": [
+        { "id": "ds_contact", "at": 60, "action": { "kind": "MESSAGE", "text": "05:31 吕特晏斯：两艘大型军舰正从东南方接近，可能是战列巡洋舰。" } },
+        { "id": "ds_hood_speed", "at": 300, "action": { "kind": "ORDER", "side": "ALLIED", "order": "SET_SPEED", "params": { "kn": 28 }, "issuer": "霍兰德" } },
+        { "id": "ds_salvo5", "at": 720, "action": { "kind": "MESSAGE", "text": "06:00 俾斯麦第五次齐射命中胡德——史实殉爆时刻。" } }
+      ],
+      "_timeNote": "时间说明：start.date 为 UTC；env.js 以当地平太阳时 local = UTC + lon/15 计算日照，本剧本开局当地 03:21（时差 -2.15 h）。"
+    },
+    {
+      "id": "denmark_strait_1941_duel",
+      "nameZh": "丹麦海峡海战（主力对决）",
+      "date": "1941-05-24",
+      "place": "丹麦海峡（格陵兰—冰岛之间，约 63°30′N 32°W）",
+      "historicalNote": "1941 年 5 月 24 日晨，吕特晏斯海军上将率 Bismarck 与 Prinz Eugen 由波罗的海突入大西洋执行破交（莱茵演习）。霍兰中将率战列巡洋舰 Hood、新锐战列舰 Prince of Wales 在丹麦海峡拦截。0552（本地约 0352）英舰在约 24 km 上开火；约 0600，Bismarck 第 5 次齐射在约 15 km 上击穿 Hood 后部弹药库，Hood 在 3 分钟内爆炸沉没，全舰 1418 人仅 3 人生还。Prince of Wales 与 Bismarck 对射后中 4 弹、炮塔故障被迫脱离（新舰新兵、未完成射击试验）。Bismarck 亦中 3 弹，其中 1 弹击破首部燃油舱留下油迹。此战使德国水面破交战略破产；3 天后 Bismarck 在法国外海被皇家海军围歼。【变体】本剧本移除史实中在北方雷达跟踪的 Norfolk、Suffolk 两艘重巡，只保留四艘主力舰对决，用于对照主力舰交战结果。",
+      "start": {
+        "lat": 63.35,
+        "lon": -32.2,
+        "date": "1941-05-24T05:30:00Z",
+        "env": {
+          "windKn": 18,
+          "windDirDeg": 70,
+          "visibilityNm": 16,
+          "cloudCover": 0.8,
+          "seaState": 4
+        }
+      },
+      "env": {
+        "windKn": 18,
+        "windDirDeg": 70,
+        "visibilityNm": 16,
+        "cloudCover": 0.8,
+        "seaState": 4
+      },
+      "_oobNote": "变体：移除北方跟踪的 Norfolk/Suffolk（County 级）；Hood 乘员素质 1.0、Prince of Wales 0.65（新舰新兵、炮塔故障史实）。",
+      "sides": {
+        "ALLIED": {
+          "nameZh": "英国本土舰队（霍兰分队）",
+          "objective": "拦截并击沉 Bismarck；再不行也要令其无法继续破交",
+          "orderDelay_s": 6,
+          "withdrawThreshold": 0.3
+        },
+        "AXIS": {
+          "nameZh": "德国海军（吕特晏斯分队）",
+          "objective": "击破拦截兵力，突入大西洋执行破交",
+          "orderDelay_s": 8,
+          "withdrawThreshold": 0.4
+        }
+      },
+      "ships": [
+        {
+          "id": "bismarck",
+          "name": "俾斯麦",
+          "class": "Bismarck",
+          "side": "AXIS",
+          "lat": 63.52,
+          "lon": -32.36,
+          "heading": 215,
+          "speed": 27,
+          "role": "flagship",
+          "crewQuality": 1.15
+        },
+        {
+          "id": "prinz_eugen",
+          "name": "欧根亲王",
+          "class": "AdmiralHipper",
+          "side": "AXIS",
+          "lat": 63.52588,
+          "lon": -32.35078,
+          "heading": 215,
+          "speed": 27,
+          "role": "line",
+          "crewQuality": 1
+        },
+        {
+          "id": "hood",
+          "name": "胡德",
+          "class": "Hood",
+          "side": "ALLIED",
+          "lat": 63.32,
+          "lon": -32.12,
+          "heading": 300,
+          "speed": 28,
+          "role": "flagship",
+          "crewQuality": 1
+        },
+        {
+          "id": "prince_of_wales",
+          "name": "威尔士亲王",
+          "class": "KingGeorgeV",
+          "side": "ALLIED",
+          "lat": 63.31596,
+          "lon": -32.10445,
+          "heading": 300,
+          "speed": 28,
+          "role": "line",
+          "crewQuality": 0.65
+        }
+      ],
+      "objectives": [
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "SINK",
+            "shipIds": [
+              "bismarck"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "Bismarck 被击沉，破交编队覆灭"
+        },
+        {
+          "side": "ALLIED",
+          "condition": {
+            "type": "DISABLE",
+            "shipIds": [
+              "bismarck"
+            ]
+          },
+          "result": "ALLIED",
+          "text": "Bismarck 失去机动能力，破交任务失败"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "SINK_ANY",
+            "shipIds": [
+              "hood",
+              "prince_of_wales"
+            ]
+          },
+          "result": "AXIS",
+          "text": "击沉同盟国主力舰，打开大西洋通道"
+        }
+      ],
+      "_requiredClasses": [
+        "AdmiralHipper",
+        "Bismarck",
         "Hood",
         "KingGeorgeV"
       ],

@@ -41,6 +41,17 @@ const COMMAND_ACTS = new Set(['speed', 'course', 'course-set', 'rudder', 'fire',
   'smoke', 'radar', 'searchlight', 'dc', 'withdraw', 'chaff']);
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+// 未指定种子时的默认值（与 World/RNG/headless 的默认一致）：同种子 + 同操作 = 同一场战局
+const DEFAULT_SEED = 19420604;
+// 种子合法范围：无符号 32 位整数（RNG 内部用 >>> 0）。
+// 负数/越界/非数字一律返回 null（由调用方提示），不静默环绕成另一个种子——
+// 否则用户输入 -5 会得到 4294967291，看着像"改成功了"，实际完全不是他想的那一局。
+function normalizeSeed(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!isFinite(n) || n < 0 || n > 4294967295) return null;
+  return Math.floor(n);
+}
 
 export function bootApp() {
   const $ = (id) => document.getElementById(id);
@@ -50,6 +61,7 @@ export function bootApp() {
     timeScale: 1, paused: false,
     selectedShipId: null, selectedTrackId: null,
     cameraMode: 'FREE', dirTarget: null, dirHold: 0, pendingStart: null,
+    seedOverride: null,   // 菜单里显式设定的随机种子；null = 未指定（沿用当前局 / 剧本默认）
     replay: null, remote: null, agentUrl: null,
     cmdLog: [], logEntries: [], logFilter: 'all',
     forcedPaneId: null, panelSig: {}, keepChat: '', missionFolded: false,
@@ -425,6 +437,10 @@ export function bootApp() {
       '<h4 style="margin-top:16px">AI</h4>' +
       '<div class="sub">默认双方都由 AI 自动指挥，你下的命令优先（5 分钟仿真时间内不会被覆盖）。想完全自己打，' +
       '在「AI」页把「自动指挥」关掉。敌方后端可切<b>本地规则 / 外部智能体 / 大模型</b>。</div>' +
+      '<h4 style="margin-top:16px">随机种子（复现战局）</h4>' +
+      '<div class="sub">传感器噪声、弹着、损伤判定都由一个<b>随机种子</b>驱动。<b>同一种子 + 同样的指挥 = 同一场战局</b>：' +
+      '想复盘某次交战，记下开局日志里的「随机种子 N」，下次在开局菜单填回去即可；点「随机种子」或改个数字就是全新一局。' +
+      '战报页另有「用此种子重开」。沙盒设置里也能改种子。</div>' +
       '<div style="margin-top:20px;display:flex;gap:8px"><button class="btn primary" data-act="close-overlay">开始</button>' +
       '<button class="btn" data-act="open-scenarios">选择战役</button></div>');
   }
@@ -439,6 +455,20 @@ export function bootApp() {
       '<button class="modebtn' + (cur === 'PLAY_AXIS' ? ' on' : '') + '" data-act="set-mode" data-arg="PLAY_AXIS">参战 · 轴心国</button>' +
       '<button class="modebtn' + (cur === 'SPECTATE' ? ' on' : '') + '" data-act="set-mode" data-arg="SPECTATE">观战 · AI 对战</button>' +
       '</div><span class="rolehint" id="modeHint">' + (cur === 'SPECTATE' ? '双方均由 AI 指挥，你只看不打' : '本方由你指挥，敌方由 AI 指挥') + '</span></div>';
+    // ── 随机种子：决定开局的随机数序列（传感器噪声/弹着/损伤判定等）。
+    // 同一个种子 + 同样的指挥 = 同一场战局，可用来复盘、对照不同战术、或分享"这一局"。
+    // 留空 = 用剧本默认（若剧本自带 seed 则用之，否则 19420604）。
+    const curSeed = (state.seedOverride !== null && state.seedOverride !== undefined)
+      ? state.seedOverride
+      : (state.world && state.world.seed !== undefined ? state.world.seed : '');
+    h += '<div style="display:flex;gap:10px;margin:0 0 16px;align-items:center;flex-wrap:wrap">' +
+      '<span class="rolehint">随机种子</span>' +
+      '<input id="seedInput" type="number" min="0" max="4294967295" step="1" value="' + curSeed + '" placeholder="留空 = 剧本默认"' +
+      ' title="同一种子 + 同样的指挥 = 同一场战局；改种子即换一局"' +
+      ' style="width:150px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)">' +
+      '<button class="btn" data-act="seed-random" title="随机换一个种子（开新的一局）">随机种子</button>' +
+      '<button class="btn" data-act="seed-default" title="清空，改用剧本默认种子">改用默认</button>' +
+      '<span class="rolehint">同种子可复现；改它即换一局</span></div>';
     h += '<div class="scens">' +
       '<div class="scen" data-act="open-sandbox-setup">' +
       '<div class="t">沙盒模式<span class="tag">自定义</span></div>' +
@@ -485,7 +515,7 @@ export function bootApp() {
       allied: { BB: 'Iowa', CA: 'NewOrleans', DD: 'Fletcher' },
       axis: { BB: 'Bismarck', CA: 'Takao', DD: 'Kagero' },
       rangeNm: 12, bearingDeg: 90, headingDeg: 90, speedKn: 18,
-      visNm: 15, seaState: 3, windKn: 12, hour: 9, victory: false,
+      visNm: 15, seaState: 3, windKn: 12, hour: 9, victory: false, seed: DEFAULT_SEED,
     };
   }
   function sbxNations(side) { return side === 'ALLIED' ? ['US', 'UK', 'FR', 'NL'] : ['DE', 'JP', 'IT']; }
@@ -533,6 +563,7 @@ export function bootApp() {
       num('sbxSea', '海况 0-6', d.seaState, 0, 6) +
       num('sbxWind', '风 kn', d.windKn, 0, 40) +
       num('sbxHour', '当地时间 h', d.hour, 0, 23) +
+      num('sbxSeed', '随机种子', d.seed !== undefined ? d.seed : DEFAULT_SEED, 0, 4294967295) +
       '</div>';
     h += '<div style="margin:6px 0 14px"><label><input id="sbxVictory" type="checkbox"' + (d.victory ? ' checked' : '') + '> 启用胜负判定（默认关闭：全灭也不结束，方便继续试验）</label></div>';
     h += '<div style="display:flex;gap:8px"><button class="btn primary" data-act="sbx-start">开始沙盒</button>' +
@@ -600,6 +631,9 @@ export function bootApp() {
     d.seaState = sbxNum('sbxSea', d.seaState);
     d.windKn = sbxNum('sbxWind', d.windKn);
     d.hour = sbxNum('sbxHour', d.hour);
+    // 沙盒同样支持随机种子：同设置 + 同种子 = 同结果，便于对照不同战术
+    const seedIn = normalizeSeed(sbxNum('sbxSeed', d.seed !== undefined ? d.seed : DEFAULT_SEED));
+    d.seed = seedIn === null ? DEFAULT_SEED : seedIn;
     const vic = $('sbxVictory');
     d.victory = !!(vic && vic.checked);
     d.allied = { BB: sbxVal('sbx_ALLIED_BB', ''), CA: sbxVal('sbx_ALLIED_CA', ''), DD: sbxVal('sbx_ALLIED_DD', '') };
@@ -608,8 +642,8 @@ export function bootApp() {
     const scen = buildSandboxScenario(d, cls);
     if (!scen.ships.length) { toast('至少要给双方各选一艘舰', 'gold'); return; }
     hideOverlay();
-    startScenario(scen, { mode: 'PLAY', side: d.side });
-    logLocal('沙盒：已按你的设置生成战场（无剧本约束）');
+    startScenario(scen, { mode: 'PLAY', side: d.side, seed: d.seed });
+    logLocal('沙盒：已按你的设置生成战场（无剧本约束）· 随机种子 ' + d.seed);
     toast('沙盒开始：顶栏「沙盒」可随时增删舰', 'ok');
   }
   function openSandboxConsole() {
@@ -729,8 +763,16 @@ export function bootApp() {
     if (o.side) state.side = o.side;
     state.spectate = state.mode === 'SPECTATE';
     try {
+      // 随机种子优先级：显式数字 > 明确"用剧本默认"(null) > 未指定时沿用当前局种子 > 剧本默认。
+      // 这样「切观战 / 切阵营 / 重开本局」仍是同一场战局，而菜单里改种子能开出新局。
+      let seed;
+      if (o.seed === null) seed = (scen.seed !== undefined && scen.seed !== null) ? normalizeSeed(scen.seed) : DEFAULT_SEED;
+      else if (o.seed !== undefined && normalizeSeed(o.seed) !== null) seed = normalizeSeed(o.seed);
+      else if (state.world && state.world.scenario === scen && state.world.seed !== undefined) seed = state.world.seed;
+      else seed = (scen.seed !== undefined && scen.seed !== null) ? normalizeSeed(scen.seed) : DEFAULT_SEED;
+      state.seedOverride = null;
       state.world = new World({
-        scenario: scen, database: state.db, seed: scen.seed || 19420604,
+        scenario: scen, database: state.db, seed,
         playerSide: state.spectate ? null : state.side,
         aiOpts: { backend: 'LOCAL' }, landData: state.landData, depthData: state.depthData,
       });
@@ -764,6 +806,7 @@ export function bootApp() {
     bindWorldEvents();
     try { state.chart.fitToContacts(state.world.visibleStateFor(state.spectate ? 'ALLIED' : state.side), 1.25); } catch (e) { /* 取景失败不影响开局 */ }
     logLocal('交战开始：' + (scen.nameZh || scen.id) + ' · ' + (scen.date || '') + ' · ' + (scen.place || ''));
+    logLocal('随机种子 ' + state.world.seed + '——记下它，下次用同一种子可复现本场战局。');
     logLocal(state.spectate ? '观战模式：双方由 AI 指挥，你只看不打。' : '你是 ' + state.world.sides[state.side].nameZh + ' 指挥官。任务：' + state.world.sides[state.side].objective);
     forcePanes();
   }
@@ -1224,6 +1267,20 @@ export function bootApp() {
     if (act === 'close-overlay') { hideOverlay(); return; }
     if (act === 'open-scenarios') { hideOverlay(); showScenarios(); return; }
     if (act === 'open-sandbox-setup') { hideOverlay(); showSandboxSetup(); return; }
+    // ── 随机种子（UI 层随机，不是仿真随机：不触碰 world.rng，因此不违反内核"随机数只走 rng"的约束）──
+    if (act === 'seed-random') {
+      const v = Math.floor(Math.random() * 4294967296) >>> 0;
+      state.seedOverride = v;
+      const el = $('seedInput'); if (el) el.value = String(v);
+      toast('随机种子：' + v + '（点剧本即以此种子开局）', 'info');
+      return;
+    }
+    if (act === 'seed-default') {
+      state.seedOverride = null;
+      const el = $('seedInput'); if (el) el.value = '';
+      toast('已改为剧本默认种子', 'info');
+      return;
+    }
     if (act === 'open-sandbox') { openSandboxConsole(); return; }
     if (act === 'sbx-close') { closeModal(); return; }
     if (act === 'sbx-side') {
@@ -1260,8 +1317,17 @@ export function bootApp() {
       const s = state.scenarios.find((x) => x.id === arg);
       if (!s) { toast('剧本不存在：' + arg, 'gold'); return; }
       const m = (state.pendingStart && state.pendingStart.mode) || 'PLAY_ALLIED';
-      if (m === 'SPECTATE') startScenario(s, { mode: 'SPECTATE' });
-      else startScenario(s, { mode: 'PLAY', side: m === 'PLAY_AXIS' ? 'AXIS' : 'ALLIED' });
+      // 读菜单里的种子输入：填了就用它，留空则明确"用剧本默认"（传 null，避免复用到上一局）。
+      const seedEl = $('seedInput');
+      let seed = null;
+      if (seedEl && String(seedEl.value).trim() !== '') {
+        seed = normalizeSeed(seedEl.value);
+        if (seed === null) { toast('随机种子需为非负整数（0 ~ 4294967295）', 'gold'); return; }
+      }
+      const extra = { seed };
+      if (m === 'SPECTATE') startScenario(s, Object.assign({ mode: 'SPECTATE' }, extra));
+      else startScenario(s, Object.assign({ mode: 'PLAY', side: m === 'PLAY_AXIS' ? 'AXIS' : 'ALLIED' }, extra));
+      toast('开局种子 ' + state.world.seed, 'info');
       return;
     }
     if (act === 'set-pane') {
@@ -1298,6 +1364,14 @@ export function bootApp() {
     if (act === 'export-replay') { exportFile(w, 'replay'); return; }
     if (act === 'replay-close') { if (state.replay) { state.replay.destroy(); state.replay = null; } forcePanes(); return; }
     if (act === 'extend') { hideOverlay(); extendBattle(); return; }
+    // 战报里"用此种子重开"：同一剧本 + 同一随机种子，配合同样的指挥即可复现本场战局
+    if (act === 'seed-restart') {
+      const seed = w.seed;
+      hideOverlay();
+      startScenario(w.scenario, { mode: state.spectate ? 'SPECTATE' : 'PLAY', side: state.side, seed });
+      toast('已用种子 ' + seed + ' 重开本局', 'ok');
+      return;
+    }
 
     if (act === 'select-ship' && arg) {
       const s = w.ship(arg);
@@ -2104,7 +2178,9 @@ export function bootApp() {
     const s = state.scenarios.find((x) => x.id === scenId) || state.scenarios[0];
     if (!s) return false;
     state._aarShown = false;
-    startScenario(s, { mode: state.mode, side: state.side });
+    // 深链支持 ?seed=12345（截图/自动化/分享"这一局"）；不传则沿用默认
+    const qSeed = normalizeSeed(q.get('seed'));
+    startScenario(s, Object.assign({ mode: state.mode, side: state.side }, qSeed === null ? {} : { seed: qSeed }));
     if (q.get('role')) { state.role = String(q.get('role')).toUpperCase(); markRoleButtons(); forcePanes(); }
     if (q.get('pane')) doAction('set-pane', String(q.get('pane')));
     if (q.get('cam')) { state.cameraMode = String(q.get('cam')).toUpperCase(); markCamButtons(); }

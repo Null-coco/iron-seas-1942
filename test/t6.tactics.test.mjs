@@ -428,7 +428,7 @@ test('T6.6d LocalAI 雷击突击：舷角窗口内驱逐舰齐射（扇面+双�
   w.tracks = new MiniTracks(w);
   addShip(w, { id: 'BB', side: 'AXIS', class: 'fuso', x: -3000, y: 0, heading: 90, speed: 20, role: 'flagship' });
   const d1 = addShip(w, { id: 'D1', side: 'AXIS', class: 'fubuki', x: 4000, y: 1000, heading: 90, speed: 32 });
-  const eBB = addShip(w, { id: 'EBB', side: 'ALLIED', class: 'NorthCarolina', x: 12000, y: 0, heading: 0, speed: 22 }); // 横越（舷角≈90°）
+  const eBB = addShip(w, { id: 'EBB', side: 'ALLIED', class: 'NorthCarolina', x: 7000, y: 0, heading: 0, speed: 22 }); // 横越（舷角≈90°），3.2km：雷击窗口内
   commandChain(w);
   const ai = new LocalAI('AXIS', { intervalS: 8 });
   refreshTracks(w);

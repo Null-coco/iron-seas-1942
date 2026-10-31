@@ -156,7 +156,9 @@ section('3) 风险事件（hit / flash / fire_threat / flooded）绝不能造成
   const world = makeWorld(20240601);
   const y = spawn(world, 'yamato', 'AXIS', 'class:Yamato');
   y.mainBatteries[0].flashProtection = false;      // 强制：无防闪爆门（老式战巡情形）
-  applyHit(world, magazineHit(y, { x_frac: 0.19, warheadKg: 10, energyMJ: 30, caliberMM: 356 }));
+  // 3b 的本意是"炮塔中弹 → 扬弹机闪爆传火"，因此必须显式标注命中部位为 TURRET：
+  // damage.js 现在只在 hitPart=TURRET 时走闪爆传火链路（舷侧/甲板穿透不再按 x 位置波及炮塔）。
+  applyHit(world, magazineHit(y, { x_frac: 0.19, hitPart: 'TURRET', warheadKg: 10, energyMJ: 30, caliberMM: 356 }));
   const evs = magEvents(world);
   const flash = evs.find((e) => e.result === 'flash');
   console.log('  flash 事件: ' + JSON.stringify(evs.map((e) => ({ result: e.result, magRisk: e.magRisk, flashProtected: e.flashProtected }))) +

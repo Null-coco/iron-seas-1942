@@ -98,9 +98,15 @@ check('舯部机舱命中摧毁锅炉与主轴', subsystemsDead(mach.ship, 'BOIL
   '锅炉 ' + subsystemsDead(mach.ship, 'BOILER') + ' / 主轴 ' + subsystemsDead(mach.ship, 'SHAFT'));
 check('艏部命中不摧毁动力', subsystemsDead(bow.ship, 'BOILER') === 0 && subsystemsDead(bow.ship, 'SHAFT') === 0);
 check('机舱命中进水多于艏部命中', mach.rep.floodedM3 > bow.rep.floodedM3 * 1.25, mach.rep.floodedM3 + ' > ' + bow.rep.floodedM3);
-check('机舱命中航速上限显著低于艏部', mach.ship.speedCapKn < bow.ship.speedCapKn - 1.5,
+check('机舱命中航速上限显著低于艏部', mach.ship.speedCapKn < bow.ship.speedCapKn - 1.0,
   mach.ship.speedCapKn.toFixed(1) + ' vs ' + bow.ship.speedCapKn.toFixed(1) + ' kn');
-check('机舱命中航速上限 ≤ 原最大航速的 85%', mach.ship.speedCapKn <= 27.5 * 0.85, mach.ship.speedCapKn.toFixed(1) + ' kn');
+// 单发 460mm 只坏"一个设备组"（1 台锅炉或 1 根轴），航速上限下降但不崩塌。
+// 旧模型一发同时打坏 2 台锅炉 + 1 根轴（掉到 ≤85%，约 21.8kn），这正是"大和挨两发就动力尽失、
+// 被判重伤撤退"的来源（见 damage.js damageSubsystems 的 nb/rB）。此处做成双向断言：
+// 下界防止"单发命中机舱毫无效果"回归，上界防止"单发动力崩塌"回归。
+check('机舱命中航速上限下降、但单发不致动力崩塌（85%~96%）',
+  mach.ship.speedCapKn <= 27.5 * 0.96 && mach.ship.speedCapKn >= 27.5 * 0.85,
+  mach.ship.speedCapKn.toFixed(1) + ' kn（设计 27.5）');
 check('大和单发 460mm 命中不致沉没', mach.ship.isAfloat && !mach.ship.sinking);
 check('emit dam.penetration', countType(mach.world, 'dam.penetration') === 1);
 check('周期 dam.flood 事件被节流（5–10s 一条）', countType(mach.world, 'dam.flood') >= 55 && countType(mach.world, 'dam.flood') <= 190, countType(mach.world, 'dam.flood') + ' 条/900s');
