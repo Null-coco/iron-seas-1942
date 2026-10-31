@@ -52,7 +52,7 @@ const G = 9.80665;
 const RHO_SEA_T = 1.025;                 // 海水密度 t/m³
 const CD_ORIFICE = 0.62;                 // 锐缘孔口流量系数
 const SQRT_2G = Math.sqrt(2 * G);
-const PUMP_UTIL = 0.15;                  // 泵组实战可用排量（电源/吸口/管损/背压折扣；大和级 ≈ 4700 m³/h）
+const PUMP_UTIL = 0.20;                  // 泵组实战可用排量（电源/吸口/管损/背压折扣；原 0.15 太保守，进水常压过泵速，船眼睁睁沉掉）
 const VENT_OPEN = 1.0, VENT_CLOSED = 0.45;
 
 // 舱壁设计水头：舱内压头超过舱深的该比例后，水密门/舱壁开始渗漏（渐进进水）
@@ -294,6 +294,8 @@ export function applyHit(world, rawHit) {
   const hit = normalizeHit(rawHit);
   const ship = resolveShip(world, hit);
   if (!ship || !ship.isAfloat) return null;
+  // 调试/标定用：不可损伤目标（沙盒"无敌"或火控标定测试，避免目标被击伤后几何变化干扰收敛）
+  if (ship._invulnerable) return null;
   if (ship.dmg && ship.dmg.detonated) return null;
   const d = dmgState(ship);
   const rng = world.rng;
@@ -303,7 +305,9 @@ export function applyHit(world, rawHit) {
   ship.flags.engaged = true;
   // 统计口径：hitsTaken 只统计真正的命中；近失弹（水柱/水中冲击）单独计入 nearMisses。
   // 旧实现把近失也当命中，加上 ballistics 的重复计数，AAR「被命中」合计 = gun.hit*2 + gun.nearmiss。
-  if (!near) {
+  // 碰撞（isCollision）造成的破口/进水不计入「被命中」口径——它不是被炮弹/鱼雷命中，
+  // 否则 AAR 的命中/发射统计与命中率会把自撞算成敌人战果。
+  if (!near && !hit.isCollision) {
     ship.stats.hitsTaken++;   // 唯一的「被命中」计数入口（ballistics/torpedo 不再自行累加）
     d.hitCount++;             // 近失只进 d.nearMisses，不进命中计数
   }
@@ -348,6 +352,39 @@ export function applyHit(world, rawHit) {
       c.breached = true;
     }
     if ((hit.energyMJ || 0) > 60 && rng.chance(0.18)) igniteFire(world, ship, hit, c, d, 0.12, '跳弹引燃');
+    // ── 炮塔直接命中但未击穿 ────────────────────────────────────────────────
+    // 旧实现未穿透就直接 return，炮塔"没被穿透"= 完全没事，于是史实胡德的死法
+    // （炮塔中弹 → 火焰沿扬弹机窜入弹药库 → 3 分钟殉爆）在模型里根本不存在：
+    // 丹麦海峡变体局里胡德挨了 72 发（含 2 发 380mm 直接命中炮塔，均被 305mm/炮塔装甲挡住）
+    // 却始终不殉爆，只能被进水慢慢淹 28 分钟。
+    // 这里补上"未击穿也会伤炮塔 + 低概率闪爆传火"这条链，概率远低于击穿（每发 2%~7%）。
+    if (!isTorp && hit.hitPart === 'TURRET') {
+      const mainsB = (ship.mainBatteries || []).slice().sort((a, b2) => Math.abs(a.station_frac - c.x_frac) - Math.abs(b2.station_frac - c.x_frac));
+      const tb = mainsB[0];
+      if (tb && Math.abs(tb.station_frac - c.x_frac) <= 0.07) {
+        tb.health = clamp(tb.health - 0.5 * sev0 * 3, 0, 1);
+        tb.crewLoss = clamp((tb.crewLoss || 0) + 0.1 * sev0, 0, 1);
+        if (tb.health <= 0.05) tb.destroyed = true;
+        ev(world, ship, hit, 'dam.subsystem', {
+          compartment: c.i, kind: 'TURRET', name: tb.label,
+          value: +tb.health.toFixed(2), health: +tb.health.toFixed(2), destroyed: tb.destroyed, cause: '炮塔被弹（未击穿）',
+        });
+        const magB = magazineForBattery(ship, tb);
+        if (magB) {
+          const prot = !!tb.flashProtection && (magB.flashProtection !== false);
+          const risk = (prot ? 0.05 : 0.12) * clamp(sev0 * 4, 0.4, 1.4);
+          magB.magRisk = clamp((magB.magRisk || 0) + risk, 0, 1.2);
+          if (risk > 0.015) {
+            ev(world, ship, hit, 'dam.magazine', {
+              compartment: magB.i, x_frac: +magB.x_frac.toFixed(3), result: 'flash',
+              value: +magB.magRisk.toFixed(2), magRisk: +magB.magRisk.toFixed(2),
+              flashProtected: prot, cause: '炮塔被弹闪爆传火',
+            });
+          }
+          if (magB.magRisk >= 1) explodeMagazine(world, ship, magB, d);
+        }
+      }
+    }
     emitBounce(world, ship, hit, c, armorMM);
     return { compartment: c.i, penetrates: false };
   }
@@ -394,6 +431,11 @@ export function applyHit(world, rawHit) {
   }
 
   let sev = clamp(0.35 + (hit.energyMJ || 0) / 140 + (isTorp ? 0.5 : 0), 0.25, 1.6);
+  // 大口径穿甲弹"过穿"薄板：底引信未必起爆，但 300mm+ 的弹体在舰内穿行本身就是灾难性的
+  // （大破口、火灾、成片伤亡）。旧实现只乘 0.70，等于铁棍穿纸——近战里战列舰的 AP
+  // 打不动巡洋舰上层建筑，反而被 8 吋速射压制。用等效毁伤补偿，不改弹道/观测行为。
+  const overPenCal = hit.caliberMM || hit.caliber_mm || (hit.shell && hit.shell.caliberMM) || 0;
+  if (hit.passThrough && !isTorp && overPenCal >= 280) sev = Math.max(sev, 1.25);
   // 哑弹（未起爆）与穿而炸（pass-through）：舰内爆破效应大减
   if (hit.dud && !isTorp) sev *= 0.55;
   else if (hit.passThrough && !isTorp) sev *= 0.70;
@@ -545,9 +587,13 @@ function damageSubsystems(world, ship, hit, c, d, sev, isTorp, rng) {
   const resist = baseResist + (1 - baseResist) * clamp((calMM - 280) / 180, 0, 1);
 
   if (c.isMachinery) {
-    // 一个“主机组” = 1 根主轴 + 为其供汽的锅炉组（大和型 6 炉 4 轴 → 每组约 1.5 炉，取 2）
-    const nb = isTorp ? 3 : 2, ns = isTorp ? 2 : 1;
-    const rB = isTorp ? 0.14 : 0.10, rS = isTorp ? 0.10 : 0.06;
+    // 单发炮弹的爆炸范围只够毁掉"一个设备组"：一枚 16 吋 AP 的装药只有十几公斤，
+    // 而战列舰的锅炉间距约 7~10 m、且分置于彼此独立的机炉舱。旧模型对炮弹取 nb=2、
+    // 半径 rB=0.10（大和 263 m 即 26 m）→ 一发穿透弹同时打坏两台锅炉，2~3 发就把动力打到
+    // 63%，速度上限跌破 AI 的 72% 退出线，于是"大和挨几发就判重伤撤退"。
+    // 鱼雷（数百公斤装药、鞭状振动）才允许连带相邻设备组。
+    const nb = isTorp ? 3 : 1, ns = isTorp ? 2 : 1;
+    const rB = isTorp ? 0.14 : 0.055, rS = isTorp ? 0.10 : 0.05;
     for (const s of boilers.slice(0, nb)) if (Math.abs(s.station_frac - x) <= rB) damageSystem(world, ship, hit, s, clamp(sev, 0.4, 1) * resist, '机炉舱命中');
     for (const s of shafts.slice(0, ns)) if (Math.abs(s.station_frac - x) <= rS) damageSystem(world, ship, hit, s, clamp(sev, 0.4, 1) * resist, '机炉舱命中');
     const elec = ship.subsystems.find((s) => s.kind === 'ELECTRICAL');
@@ -563,20 +609,33 @@ function damageSubsystems(world, ship, hit, c, d, sev, isTorp, rng) {
       if (st.destroyed && st.jamAngle === null) st.jamAngle = rng.chance(0.5) ? 25 : -25;
     }
   }
-  // 舰桥/指挥仪/雷达
-  if (x > 0.33 && x < 0.62) {
+  // 舰桥/指挥仪/雷达：只有命中上层建筑/舰桥/炮塔的穿透弹才可能波及这些暴露设备。
+  // 旧实现按"x 落在 0.33~0.62"一刀切——舷侧装甲带（BELT）的穿透弹在舰内爆炸也能 2~3 发
+  // 打光指挥仪与雷达，大和就是这样在 3 分钟内失去全部火控、几乎一发没还手。
+  const hitPartKind = hit.hitPart || '';
+  const hitSuper = hitPartKind === 'SUPERSTRUCTURE' || hitPartKind === 'BRIDGE' || hitPartKind === 'TURRET';
+  if (hitSuper && x > 0.33 && x < 0.62) {
     const dirs = ship.directors.slice().sort((a, b) => Math.abs(a.station_frac - x) - Math.abs(b.station_frac - x));
     // 指挥仪塔：重型装甲（100~150mm）+ 体积小。史实上俾斯麦的主指挥仪直到最后阶段才被打掉，
     // 而旧模型 2~3 发就让一艘战列舰彻底丧失火控——这会让一方瞬间"变瞎"，双方都受害。
-    if (dirs[0] && Math.abs(dirs[0].station_frac - x) <= 0.10) damageSystem(world, ship, hit, dirs[0], 0.8 * sev * resist * 0.35, '指挥仪命中');
+    // 主力舰指挥仪塔是重点防护部位（100~150mm 装甲 + 体积小）：8 吋在近距也很难击穿，
+    // 15 吋以上命中才有真正的机会。没有这层区分时，重巡 3 分钟就能打瞎一艘战列舰的火控。
+    const dirCal = hit.caliberMM || hit.caliber_mm || 203;
+    const dirMul = (ship.type === 'BB' || ship.type === 'BC')
+      ? 0.15 * clamp(Math.pow(dirCal / 381, 2), 0.08, 1)     // 8 吋 ≈0.04，11 吋 ≈0.08，15 吋 0.15
+      : 0.35;
+    if (dirs[0] && Math.abs(dirs[0].station_frac - x) <= 0.10) damageSystem(world, ship, hit, dirs[0], 0.8 * sev * resist * dirMul, '指挥仪命中');
     const sens = ship.sensors.slice().sort((a, b) => Math.abs(a.station_frac - x) - Math.abs(b.station_frac - x));
+    const sensMul = (ship.type === 'BB' || ship.type === 'BC') ? clamp(Math.pow(dirCal / 381, 2), 0.06, 1) : 1;
     if (sens[0] && Math.abs(sens[0].station_frac - x) <= 0.1) {
-      sens[0].health = clamp(sens[0].health - 0.7 * sev * resist, 0, 1);
+      sens[0].health = clamp(sens[0].health - 0.7 * sev * resist * sensMul, 0, 1);
       if (sens[0].health <= 0.05) { sens[0].health = 0; sens[0].destroyed = true; }
       ev(world, ship, hit, 'dam.subsystem', { compartment: c.i, kind: 'SENSOR', name: sens[0].label, value: +sens[0].health.toFixed(2), health: +sens[0].health.toFixed(2), destroyed: sens[0].destroyed, cause: '命中' });
     }
     const rf = ship.rangefinders[0];
-    if (rf) { rf.health = clamp(rf.health - 0.5 * sev * resist * 0.5, 0, 1); if (rf.health <= 0.05) rf.destroyed = true; }
+    // 主力舰测距仪装在装甲炮塔/指挥仪上：8 吋难以打坏，大口径才有机会
+    const rfMul = (ship.type === 'BB' || ship.type === 'BC') ? clamp(Math.pow(dirCal / 381, 2), 0.06, 1) : 1;
+    if (rf) { rf.health = clamp(rf.health - 0.5 * sev * resist * 0.5 * rfMul, 0, 1); if (rf.health <= 0.05) rf.destroyed = true; }
   }
   // 喷淋/注水设备
   const spr = ship.subsystems.find((s) => s.kind === 'MAGAZINE_SPRINKLER');
@@ -584,11 +643,22 @@ function damageSubsystems(world, ship, hit, c, d, sev, isTorp, rng) {
     const mags = magazineCompartments(ship);
     if (mags.some((m) => Math.abs(m.x_frac - x) <= 0.12)) damageSystem(world, ship, hit, spr, 0.5 * sev * resist, '弹药库附近命中');
   }
-  // 炮塔：就近的主炮塔被弹
+  // 炮塔：直接命中炮塔（TURRET）才重创；其它部位的穿透弹只在炮座附近造成轻微波及。
+  // 旧实现不看命中部位、按 ±0.07（大和 263m → 18m）一刀切，2 发舷侧穿透就能毁一座炮塔，
+  // 3 艘围攻下大和的 3 座主炮在 200 秒内全部报废——这就是"大和又脆又不还手"的直接原因。
+  const directTurret = hitPartKind === 'TURRET';
+  const turretReach = directTurret ? 0.07 : 0.04;
   const mains = (ship.mainBatteries || []).slice().sort((a, b) => Math.abs(a.station_frac - x) - Math.abs(b.station_frac - x));
-  if (mains[0] && Math.abs(mains[0].station_frac - x) <= 0.07) {
+  if (mains[0] && Math.abs(mains[0].station_frac - x) <= turretReach) {
     const b = mains[0];
-    b.health = clamp(b.health - (isTorp ? 0.9 : 0.7) * sev * resist, 0, 1);
+    const turretMul = directTurret ? (isTorp ? 0.9 : 0.7) : (isTorp ? 0.25 : 0.15);
+    // 主力舰主炮塔正面装甲 300~400mm：8 吋炮弹几乎不可能打坏炮塔，
+    // 只有大口径（>=280mm）才按全额伤害。旧模型不区分口径，重巡能靠"擦边命中"磨掉战列舰主炮。
+    const turCal = hit.caliberMM || hit.caliber_mm || 203;
+    const turCalMul = (ship.type === 'BB' || ship.type === 'BC')
+      ? clamp(Math.pow(turCal / 381, 3), 0.01, 1)            // 8 吋 ≈0.15，11 吋 ≈0.24，15 吋 1.0
+      : 1;
+    b.health = clamp(b.health - turretMul * turCalMul * sev * resist, 0, 1);
     b.crewLoss = clamp((b.crewLoss || 0) + 0.15 * sev, 0, 1);
     if (b.health <= 0.05) b.destroyed = true;
     ev(world, ship, hit, 'dam.subsystem', { compartment: c.i, kind: 'TURRET', name: b.label, value: +b.health.toFixed(2), health: +b.health.toFixed(2), destroyed: b.destroyed, cause: '炮塔中弹' });
@@ -596,7 +666,7 @@ function damageSubsystems(world, ship, hit, c, d, sev, isTorp, rng) {
     // 这是主力舰最致命的机理：日德兰三艘战巡（玛丽女王/无敌/不倦）与胡德都是炮塔中弹后
     // 火焰沿扬弹机窜入弹药库。防闪爆门（flashProtection）完善时几乎不会发生；一旦被破坏
     // 或本身就没有，单发就可能引爆。旧模型完全没有这条链路——所以胡德永远不会殉爆。
-    if (hit.penetrates || hit.penetrated) {
+    if (directTurret && (hit.penetrates || hit.penetrated)) {
       const mag = magazineForBattery(ship, b);
       if (mag) {
         const protectedFlash = !!b.flashProtection && (mag.flashProtection !== false);
@@ -622,6 +692,13 @@ function damageSubsystems(world, ship, hit, c, d, sev, isTorp, rng) {
 
 function damageSystem(world, ship, hit, s, amount, cause) {
   if (!s || s.destroyed) return;
+  // 同一发命中的两次结算（命中舱 c + 引信延迟在相邻舱 c2 起爆）不得重复损坏同一设备。
+  // 旧实现里同一台锅炉可能被 c 与 c2 各打一遍，放大成"一发毁两台锅炉"。
+  if (hit) {
+    if (!hit._subsHit) hit._subsHit = new Set();
+    if (hit._subsHit.has(s)) return;
+    hit._subsHit.add(s);
+  }
   const before = s.health;
   s.health = clamp(s.health - amount, 0, 1);
   if (s.health <= 0.05) { s.health = 0; s.destroyed = true; }
@@ -862,7 +939,7 @@ function allocateDC(ship, world, d) {
   const dc = dcSubsystem(ship);
   const alive = clamp(ship.crew / Math.max(1, ship.crew0), 0, 1);
   const parties = (dc && !dc.destroyed) ? Math.floor(dc.parties * alive) : 0;
-  const dcEff = (dc && !dc.destroyed ? dc.health : 0) * (ship.crewQuality || 0.85) * (0.65 + 0.35 * clamp(ship.morale, 0, 1));
+  const dcEff = (dc && !dc.destroyed ? dc.health : 0) * (ship.crewQuality || 0.85) * (0.72 + 0.28 * clamp(ship.morale, 0, 1));
   const priority = ship.dcPriority || 'flooding';
   const W = DC_PRIORITY_WEIGHTS[priority] || DC_PRIORITY_WEIGHTS.flooding;
 
@@ -927,7 +1004,7 @@ function updateFlooding(ship, world, d, plan, dt) {
         const maxPatch = clamp(0.92 - 0.06 * c.breachAreaM2, 0.35, 0.92);
         // 速率按史实标定：2 个损管队封堵 0.3m² 破口约需 3~5 分钟（堵漏垫/木楔/支柱/水泥箱逐步作业），
         // 破口越大越慢；舱内水位越高越难下手。
-        const rate = 0.0025 * pf * ((plan && plan.dcEff) || 0.6) * (1 - 0.6 * frac) / (1 + c.breachAreaM2);
+        const rate = 0.0030 * pf * ((plan && plan.dcEff) || 0.6) * (1 - 0.6 * frac) / (1 + c.breachAreaM2);
         const before = c.patch || 0;
         c.patch = clamp(before + rate * dt, 0, maxPatch);
         for (const th of [0.25, 0.5, 0.75]) {
@@ -961,7 +1038,7 @@ function updateFlooding(ship, world, d, plan, dt) {
     if (reserve < 0.55) {
       const cand = ship.compartments.find((c) => (c.sideBias || 0) * highSide > 0.15 && !c.magFlooded && c.flood_m3 < c.volume_m3 * 0.75);
       if (cand) {
-        const rate = 0.22 * plan.spare * ((plan && plan.dcEff) || 0.6);
+        const rate = 0.28 * plan.spare * ((plan && plan.dcEff) || 0.6);
         const add = Math.min(rate * dt, cand.volume_m3 - cand.flood_m3);
         if (add > 0) {
           cand.flood_m3 += add;

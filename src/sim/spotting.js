@@ -171,6 +171,14 @@ function evaluateSalvo(ship, world, rec) {
       latSum += lat; latN++;
     }
   }
+  // 命中/爆炸本身就是最可靠的一次着弹观测（水柱只是没打中时的替代手段）。
+  // 旧实现只有"全命中、没有任何水柱"时才补一个 delta；混合齐射里那几发命中
+  // 完全不参与距离修正——穿甲弹改为舰内起爆后水柱变少，校射就明显变差（t4 回归）。
+  // 这里给每次有命中的齐射补一条"命中观测"：偏差 ~0（半目标投影的 1/4 作为读取噪声）。
+  if (hits > 0) {
+    deltas.push(world.rng.normal(0, Math.max(20, halfExtent * 0.25)));
+    if (!radarOnly) { latSum += world.rng.normal(0, Math.min(sigmaLat, 200) * 0.5); latN++; }
+  }
   if (!deltas.length && hits <= 0) {
     // 全部命中或数据缺失：视为夹叉命中
     if (hits > 0) {

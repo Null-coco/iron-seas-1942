@@ -509,7 +509,16 @@ function resolveHitPart(hit, fx) {
     if (sign > 0) return { part: 'DECK', armorMM: comp.deck_mm || armor.deck_mm || 20 };  // 自上而下穿甲板
     return { part: 'BOTTOM', armorMM: 12 };
   }
-  if (entry.z < 0.8) return { part: 'UNDERWATER', armorMM: 0 };
+  // 水线附近（|z| < 0.8m）：旧实现一律 armorMM=0 且（见 penetrationDetail 之后）强制穿透+引爆，
+  // 于是任何一发 203mm HE 打在水线下 0.8m 内都无视 410mm 装甲带直入弹药库——实测大和就是这样
+  // 被一发 203mm 打进后弹药库殉爆的（回放 sandbox_custom@604）。但主装甲带通常延伸到水线以下
+  // （大和 beltHeight_m=3，约水线上下各 1.5m），这里应按该舱段的装甲带厚度判定；
+  // 只有真正低于装甲带下缘的部分才当作无装甲的舰底。
+  if (entry.z < 0.8) {
+    const beltH = armor.beltHeight_m || 1.6;
+    if (entry.z < -(beltH * 0.5 + 0.3)) return { part: 'BOTTOM', armorMM: 12 };
+    return { part: 'UNDERWATER', armorMM: comp.belt_mm || armor.belt_mm || 0 };
+  }
   if (axis === 0) return { part: sign > 0 ? 'BOW' : 'STERN', armorMM: Math.min(comp.belt_mm || 20, 30) };
   return { part: 'BELT', armorMM: comp.belt_mm || armor.belt_mm || 25 };
 }
@@ -682,10 +691,18 @@ function applyShipHit(world, p, hit, prev, cur) {
   const fallAngle = rad2deg(Math.atan2(-p.vz, Math.hypot(p.vx, p.vy)));
   const ob = obliquityFor(ship, hit, fallAngle, velocity);
   const det = penetrationDetail(partInfo.armorMM, ob, shell, speed);
-  if (det.penetrated && !det.passThrough) det.detonated = true;
+  // 穿甲弹只要击穿装甲/舰体就在舰内起爆：底引信在穿过第一层钢板时已被触发，
+  // 过穿（passThrough）只降低毁伤（damage.js 里 sev×0.70），不等于"不爆炸"。
+  // 旧实现把 tEff < 0.18·P0 的薄板命中判为不爆 → 15 吋 AP 打巡洋舰上层建筑等于铁棍穿纸，
+  // 近战里战列舰反而打不过重巡（实测俾斯麦 700 m 对诺福克 2 命中 0 爆）。
+  if (det.penetrated) det.detonated = true;
   else if (shell.ammo === 'HE' || shell.ammo === 'AA') det.detonated = true;
   else if (det.partial && !det.bounced && !det.shattered && rng.chance(0.5 + shell.quality * 0.3)) det.detonated = true;
-  if (partInfo.part === 'UNDERWATER' || partInfo.part === 'BOTTOM') { det.penetrated = true; det.passThrough = false; det.detonated = true; }
+  // 只有"确实没有装甲"的水下/舰底命中才强制穿透（旧实现把水线附近有装甲带的命中也算进来，
+  // 等于让所有水线下命中都无视装甲）。有装甲的水线命中走上面的正常穿深判定。
+  if (partInfo.part === 'BOTTOM' || (partInfo.part === 'UNDERWATER' && !(partInfo.armorMM > 0))) {
+    det.penetrated = true; det.passThrough = false; det.detonated = true;
+  }
   if (shell.fuze === 'TIME') det.detonated = true;
   const dud = rng.chance(shell.dudChance);
   if (dud) det.detonated = false;

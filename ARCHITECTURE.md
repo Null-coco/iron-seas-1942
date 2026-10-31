@@ -121,6 +121,9 @@ ship.speed ship.course ship.collide ship.sink ship.capsize ship.launch
 gun.fire gun.salvo.away gun.hit gun.miss gun.straddle gun.penetration gun.bounce gun.nearmiss
 gun.terrain              // 炮弹落在陆地（不结算伤害）
 gun.friendlyfire         // 误击本方（victim 与射手同阵营；真打真伤）
+// gun.fire.role = 'main' | 'secondary' | 'aa' | 'close'；payload 另含 targetShipId / trackId
+// role='close' = 近距离混战全炮通道（目标 ≤ CLOSE_ALL_GUNS_M=3000 m 时副炮/高射炮压平对海；
+//   弹药按目标类型与预计穿深自动选 AP/HE：DD/CL/CV→HE，CA/BB/BC 看该口径穿深是否 ≥ 舷侧装甲 90%）
 torp.launch torp.hit torp.miss torp.dud torp.wake
 dam.flood dam.fire dam.fire.out dam.magazine dam.subsystem dam.dc dam.list dam.flood.control
 sensor.detect sensor.lose sensor.radar.on sensor.radar.jam sensor.visual.spot sensor.smoke

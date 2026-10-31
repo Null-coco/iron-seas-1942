@@ -45,6 +45,19 @@ const ARMORED_TYPES = Object.freeze({ BB: 1, BC: 1, CA: 1 });
 const HVU_TYPES = Object.freeze({ BB: 1, BC: 1, CV: 1, CA: 1 });
 const TORPEDO_TYPES_ALLOWED = Object.freeze({ DD: 1, CL: 1, CA: 1, BC: 1 });
 
+// 舰种战斗剖面（从 data/ships_*.json 聚合的典型值，见 t-data 统计）：
+// 接地到模拟的真实装甲/排水量/主炮口径，替代拍脑袋的 TYPE_VALUE 做"能不能打穿/打沉"判断。
+const TYPE_COMBAT_PROFILE = Object.freeze({
+  CV:       { belt_mm: 100, disp_t: 30000, caliber: 127 },  // 航母：侧舷薄、吨位大
+  BB:       { belt_mm: 323, disp_t: 43600, caliber: 380 },  // 战列舰：带 250–410mm
+  BC:       { belt_mm: 220, disp_t: 40000, caliber: 356 },
+  CA:       { belt_mm: 106, disp_t: 14150, caliber: 203 },  // 重巡：带 70–152mm
+  CL:       { belt_mm: 77,  disp_t: 9130,  caliber: 152 },
+  DD:       { belt_mm: 20,  disp_t: 2900,  caliber: 127 },  // 驱逐舰无主装甲带
+  UNKNOWN:  { belt_mm: 100, disp_t: 10000, caliber: 152 },
+  MERCHANT: { belt_mm: 10,  disp_t: 8000,  caliber: 0 },
+});
+
 // ── B1 条令阈值（可调；new LocalAI(side,{doctrine:{torpedo:{...},damage:{...}}}) 覆盖）──
 // 这些常量是「本地 AI 的条令」，不是物理参数：改它们只会改 AI 的判断，不会改仿真内核。
 // 全部带出处/动机注释，便于复盘时判断"AI 的决定是条令要求还是 bug"。
@@ -58,8 +71,9 @@ export const TORPEDO_DOCTRINE = Object.freeze({
   minRangeM: 900,         // 过近：陀螺/定深来不及稳定，且目标能立刻规避
   aspectMinDeg: 45,       // 目标舷角窗口下限（|sin|≈0.7，命中投影足够）
   aspectMaxDeg: 135,      // 上限（>135° 为迎头/尾追，投影只剩舰宽量级）
-  nightTofS: 300,         // 命中窗口：鱼雷飞行 ≤300s（目标最多有 5 分钟规避时间）
-  dayTofS: 420,
+  nightTofS: 180,         // 命中窗口：鱼雷飞行 ≤180s（48kn≈4.4km、27kn≈2.4km）。原 300s 给目标 5 分钟规避，
+                          // 实测 91% RANGE_EXHAUSTED、命中仅 5%。史实萨沃岛雷击在 1.5~4km 才放雷。
+  dayTofS: 240,
   singleAspectMinDeg: 55, // 单舰（编不成组）窗口更严：没有交叉扇面兜底
   singleAspectMaxDeg: 125,
   singleMaxRangeM: 8000,  // 单舰只在 ≤8km 内补射，远距留给编组齐射
@@ -88,6 +102,25 @@ export const DAMAGE_DOCTRINE = Object.freeze({
   score: 0.55,            // 综合损伤分（与 evaluateDamage 同口径）
   // 滞回：损伤回落到下沿以下并稳定 rejoinHoldS 才归队，避免阈值附近来回切换
   rejoin: Object.freeze({ floodFrac: 0.03, speedFrac: 0.82, gunLoss: 0.5, listDeg: 10, score: 0.38 }),
+  // ── 舰种差异化阈值（只放宽大舰；未列出的舰种沿用上面的默认值）────────────────
+  // 史实：战列舰会带着重伤继续留在战列线上——俾斯麦最后航速掉到 7 kn 仍在还击、大和在
+  // 莱特湾吃 2 条鱼雷后仍保持 20 kn 编队航速。而驱逐舰进水 5% 就该脱离（它没有储备浮力余量）。
+  // 旧模型对所有舰种用同一套比例阈值：大和（6 炉 4 轴，72,800 t）只要 2 发穿甲弹命中机炉舱、
+  // 航速上限掉到 70%，就被判定"重伤 → 撤退"，玩家看到的是"最强战列舰挨两下就跑"（很脆）。
+  byType: Object.freeze({
+    BB: Object.freeze({
+      floodFrac: 0.12, speedFrac: 0.50, gunLoss: 0.80, listDeg: 20, score: 0.72,
+      rejoin: Object.freeze({ floodFrac: 0.08, speedFrac: 0.62, gunLoss: 0.62, listDeg: 14, score: 0.50 }),
+    }),
+    BC: Object.freeze({
+      floodFrac: 0.11, speedFrac: 0.52, gunLoss: 0.75, listDeg: 18, score: 0.70,
+      rejoin: Object.freeze({ floodFrac: 0.075, speedFrac: 0.64, gunLoss: 0.60, listDeg: 13, score: 0.48 }),
+    }),
+    CV: Object.freeze({
+      floodFrac: 0.09, speedFrac: 0.60, gunLoss: 0.66, listDeg: 15, score: 0.62,
+      rejoin: Object.freeze({ floodFrac: 0.06, speedFrac: 0.72, gunLoss: 0.50, listDeg: 11, score: 0.42 }),
+    }),
+  }),
   rejoinHoldS: 180,
   smokeOnS: 45,           // 脱离中重复施烟的最小间隔（烟幕要持续覆盖）
   escortRangeM: 2200,     // 掩护僚舰阵位：在脱离舰朝敌一侧 2.2km
@@ -115,13 +148,16 @@ export function evaluateDamage(ship) {
 export function damageVerdict(ship, dmg, doctrine) {
   const D = doctrine || DAMAGE_DOCTRINE;
   const d = dmg || evaluateDamage(ship);
-  const R = D.rejoin || DAMAGE_DOCTRINE.rejoin;
+  // 舰种覆盖：只有大舰（BB/BC/CV）放宽，其余沿用默认阈值。doctrine 若显式传 byType 则以其为准。
+  const tier = (D.byType && ship && D.byType[ship.type]) || null;
+  const L = tier ? Object.assign({}, D, tier) : D;
+  const R = L.rejoin || D.rejoin || DAMAGE_DOCTRINE.rejoin;
   const triggers = [];
-  if (d.flood >= D.floodFrac) triggers.push('进水' + Math.round(d.flood * 100) + '%');
-  if (d.speedFrac <= D.speedFrac) triggers.push('航速上限' + Math.round(d.speedFrac * 100) + '%');
-  if (d.gunLoss >= D.gunLoss) triggers.push('主炮损失' + Math.round(d.gunLoss * 100) + '%');
-  if (d.list >= D.listDeg) triggers.push('横倾' + Math.round(d.list) + '°');
-  if (d.score >= D.score) triggers.push('损伤分' + d.score.toFixed(2));
+  if (d.flood >= L.floodFrac) triggers.push('进水' + Math.round(d.flood * 100) + '%');
+  if (d.speedFrac <= L.speedFrac) triggers.push('航速上限' + Math.round(d.speedFrac * 100) + '%');
+  if (d.gunLoss >= L.gunLoss) triggers.push('主炮损失' + Math.round(d.gunLoss * 100) + '%');
+  if (d.list >= L.listDeg) triggers.push('横倾' + Math.round(d.list) + '°');
+  if (d.score >= L.score) triggers.push('损伤分' + d.score.toFixed(2));
   const stable = d.flood <= R.floodFrac && d.speedFrac >= R.speedFrac && d.gunLoss <= R.gunLoss && d.list <= R.listDeg && d.score <= R.score;
   return Object.assign({ withdraw: triggers.length > 0, stable, triggers }, d);
 }
@@ -267,6 +303,9 @@ export class LocalAI {
     return world.issueCommand(Object.assign({ source: 'AI_LOCAL', issuer: 'LOCAL/' + this.side }, cmd));
   }
   setCourse(world, ship, heading, mem, force = false, evade = false) {
+    // 防御：航迹/威胁轴偶尔会算出非有限值（NaN 由上层计算传出）。宁可本轮不下令，
+    // 也绝不能把 NaN 写进 commanded.heading——那会经自动操舵污染整条舰乃至全队坐标。
+    if (!Number.isFinite(heading)) return false;
     let want = normDeg(heading);
     // 陆地避让：前方约 4 分钟航程是陆地就朝可航一侧偏转（真实舰长不会把船开上岸）
     if (world.land && !world.land.empty) {
@@ -306,6 +345,8 @@ export class LocalAI {
     return !!this.order(world, { shipId: ship.id, kind: 'SET_COURSE', params: { heading: want } }, evade);
   }
   setSpeed(world, ship, kn, mem, force = false, evade = false) {
+    // 防御：与 setCourse 同理（例如 speedCapKn 在极端损伤下可能算出 NaN）
+    if (!Number.isFinite(kn)) return false;
     // 取整到 1 节：受损舰的 speedCapKn 会随进水缓慢下降，浮点值每 2 节就跨一次死区，
     // 不取整会让"航速上限在掉"本身变成一串 SET_SPEED 命令。
     let want = Math.round(clamp(kn, 0, ship.data.speedMax_kn || 30));
@@ -356,8 +397,16 @@ export class LocalAI {
     return !held;
   }
   smoke(world, ship, on) {
-    if (ship.flags.smokeOn === !!on) return false;
-    this.order(world, { shipId: ship.id, kind: 'SMOKE', params: { on: !!on } });
+    const want = !!on;
+    const mem = this.memFor(ship);
+    // 命令有指挥延迟（4~12 s），下发到生效之间 ship.flags.smokeOn 仍是旧值。若只比较
+    // flags，react() 的 1 s 回路会在延迟窗口里每个 tick 重发一条 SMOKE——实测一局
+    // 撤烟 133 条 / 施烟 41 条（其中弗莱彻一舰撤烟 104 条），既刷爆命令量，
+    // 也让 AAR 里"烟幕 26 次"这类统计失去意义。这里额外记住"最后一次下发的意图"。
+    if (mem.smokeWant === want) return false;
+    if (ship.flags.smokeOn === want) { mem.smokeWant = want; return false; }
+    mem.smokeWant = want;
+    this.order(world, { shipId: ship.id, kind: 'SMOKE', params: { on: want } });
     return true;
   }
 
@@ -413,6 +462,21 @@ export class LocalAI {
             notes.push('【归队】' + ship.name + ' 损管见效（进水' + Math.round(verdict.flood * 100) + '% 航速上限' + Math.round(verdict.speedFrac * 100) + '%）→ 回归战列线');
           }
         } else mem.rejoinStableT = null;
+      }
+      // ── 防御性烟幕：近期被命中（敌已校射命中我）却还没到脱离阈值 → 施烟遮断后续校射。
+      // 接地：读 ship.stats.hitsTaken（模拟真实命中计数）的变化来判定"我正在被有效打击"。
+      const hitsNow = ship.stats && ship.stats.hitsTaken ? ship.stats.hitsTaken : 0;
+      if (mem.lastHitsTaken === undefined) mem.lastHitsTaken = hitsNow;
+      if (!mem.withdraw && hitsNow > mem.lastHitsTaken) {
+        mem.lastHitT = world.t;
+        if (!ship.flags.smokeOn && this.smoke(world, ship, true)) {
+          notes.push('【烟幕】' + ship.name + ' 被命中施烟破敌校射');
+        }
+      }
+      mem.lastHitsTaken = hitsNow;
+      // 脱离接触（>90s 无新命中）后撤烟，恢复本舰视线
+      if (!mem.withdraw && mem.lastHitT !== undefined && world.t - mem.lastHitT > 90 && ship.flags.smokeOn) {
+        this.smoke(world, ship, false);
       }
     }
     if (notes.length) {
@@ -476,6 +540,69 @@ export class LocalAI {
     return w ? { x: x / w, y: y / w } : { x: 0, y: 0 };
   }
 
+  // ── 接地目标评估：可击沉性 / 穿甲（读模拟的装甲与排水量，而非 TYPE_VALUE）──
+  shipBoreMm(ship) {
+    const mains = ship.mainBatteries || [];
+    let b = 0;
+    for (const m of mains) { const mm = m.data && m.data.bore_mm; if (mm > b) b = mm; }
+    return b;
+  }
+  // 粗略穿深（mm）：近距 ≈ 口径，随距离衰减（弹道存速下降）。目标选择只需相对量级。
+  approxPenetrationMm(boreMm, rangeM) {
+    if (!boreMm) return 0;
+    return boreMm * clamp(1.05 - (rangeM || 0) / 22000, 0.35, 1);
+  }
+  // 可击沉性 0~1：能否穿甲（穿深/装甲带）× 吨位（储备浮力）倒数。
+  // DD≈1（一打就沉）、CA≈0.55、BB≈0.25——人类指挥官优先打"打得沉"的目标，而非牌面价值。
+  killability(ship, enemyType, rangeM) {
+    const p = TYPE_COMBAT_PROFILE[enemyType] || TYPE_COMBAT_PROFILE.UNKNOWN;
+    const bore = this.shipBoreMm(ship);
+    if (!bore) return 0.1;
+    const pen = this.approxPenetrationMm(bore, rangeM);
+    const penRatio = clamp(pen / Math.max(10, p.belt_mm), 0, 1.25);
+    const sinkHard = Math.sqrt(Math.max(2000, p.disp_t) / 2900);  // DD≈1.0 CA≈2.2 BB≈3.9
+    return clamp(penRatio * 1.15 / sinkHard, 0.04, 1);
+  }
+  // 威胁度（接地，与 killability 对称）：敌主炮能否打穿"我的"装甲带 × 距离逼近。
+  // 替代 ENEMY_CALIBER 的拍脑袋归一化（cal/203），读敌方口径与己方 belt_mm。
+  threatOf(ship, enemyType, rangeM) {
+    const p = TYPE_COMBAT_PROFILE[enemyType] || TYPE_COMBAT_PROFILE.UNKNOWN;
+    const eCal = p.caliber || 0;
+    if (eCal <= 0) return 0;  // 无炮目标（商船）无炮击威胁
+    const myArmor = (ship.data && ship.data.armor) || {};
+    const myBelt = myArmor.belt_mm || 0;
+    const pen = this.approxPenetrationMm(eCal, rangeM);
+    const penRatio = clamp(pen / Math.max(10, myBelt), 0, 2);
+    const closing = clamp(1 + (20000 - Math.min(rangeM || 0, 20000)) / 12000, 1, 2.4);
+    return penRatio * closing;
+  }
+  // 交战距离判定（接地）：基于"我能否打穿它 vs 它能否打穿我"的不对称。
+  // 这是人类舰长的核心判断——我方有穿甲优势就贴近打，劣势就拉开，均势保持。
+  rangeVerdict(ship, enemyType, rangeM) {
+    const p = TYPE_COMBAT_PROFILE[enemyType] || TYPE_COMBAT_PROFILE.UNKNOWN;
+    const myBore = this.shipBoreMm(ship);
+    const myArmor = (ship.data && ship.data.armor) || {};
+    const myBelt = myArmor.belt_mm || 0;
+    const eCal = p.caliber || 0;
+    if (!myBore) return 'OPEN';                    // 无主炮：只能拉开
+    if (eCal <= 0) return 'CLOSE';                 // 无炮目标（商船）：贴近收割
+    const iPen = this.approxPenetrationMm(myBore, rangeM) / Math.max(10, p.belt_mm);   // 我穿它
+    const ePen = this.approxPenetrationMm(eCal, rangeM) / Math.max(10, myBelt);        // 它穿我
+    if (iPen > 1.15 && ePen < 0.85) return 'CLOSE';  // 我能打穿它、它打不穿我 → 优势贴近
+    if (iPen < 0.85 && ePen > 1.15) return 'OPEN';   // 它打穿我、我打不穿它 → 劣势拉开
+    return 'HOLD';                                   // 均势：保持决战距离
+  }
+  // 鱼雷威胁（接地）：有鱼雷的敌舰（DD/CL/CA/BC）在雷击窗口内威胁陡增——
+  // 鱼雷能沉任何舰、与装甲无关，所以不能只看"它打不打得穿我"。
+  // 史实：萨沃岛/塔萨法隆加夜战里，驱逐舰在 1.5~4km 一轮九三式雷就重创了重巡。
+  torpedoThreatOf(ship, enemyType, rangeM) {
+    if (!TORPEDO_TYPES_ALLOWED[enemyType]) return 0;
+    const lo = 1500, hi = 8500;   // 雷击窗口（夜战更近、日间更远，取交集近似）
+    if (rangeM < lo || rangeM > hi) return 0;
+    const prox = clamp(1 - (rangeM - lo) / (hi - lo), 0, 1);  // 越近越危险（规避窗口越小）
+    return 0.8 + 1.2 * prox;      // 0.8~2.0 的额外威胁
+  }
+
   trackValue(e) {
     const base = TYPE_VALUE[e.classifiedAs] || 30;
     const conf = e.tr.confidence !== undefined ? e.tr.confidence : 0.5;
@@ -507,12 +634,18 @@ export class LocalAI {
       let proj = -1e18;
       for (const e of enemies) { const pj = e.tr.pos.x * ux + e.tr.pos.y * uy; if (pj > proj) { proj = pj; this.fleet.vanTrackId = e.tr.id; } }
     }
-    // 集火目标：射程内价值最高者
+    // 集火目标：射程内「价值高 × 可击沉」者（接地：用旗舰 killability 作舰队穿甲能力代理）
     let focus = null, best = -1;
     const prevFocus = this.fleet.focusTrackId;
+    const flagShip = mine.find((s) => s.role === 'flagship') || mine[0];
     for (const e of enemies) {
       const inRange = e.rangeFromFlag < 26000;
-      let sc = this.trackValue(e) * (inRange ? 1 : 0.4);
+      const pHit = flagShip ? this.estimateHitProb(flagShip, e, e.rangeFromFlag, world) : 0.05;
+      // 集火焦点必须"打得到"：命中概率 <1.2% 的目标（如 22km 外的高价值雷达回波）
+      // 别挂成全队焦点，否则主力舰跟着一个打不到、也无火控解算的目标走，白白停火。
+      if (inRange && pHit < 0.012) continue;
+      const kill = flagShip ? this.killability(flagShip, e.classifiedAs, e.rangeFromFlag) : 0.5;
+      let sc = this.trackValue(e) * (inRange ? 1 : 0.4) * (0.4 + 1.2 * kill) * (0.3 + 4.0 * pHit);
       if (this.isObjectiveTarget(world, e.tr)) {
         sc *= 1.8;                                    // 任务目标是胜利条件：优先集火
         const pref2 = this.objectivePreferredId(world);
@@ -531,9 +664,20 @@ export class LocalAI {
     this.fleet.focusLabel = focus ? this.label(focus) : '';
     const anyClose = enemies.some((e) => e.rangeFromFlag < 26000);
     const forced = this.fleetForcedWithdraw(world, own, enemy);
-    if (forced) this.fleet.phase = 'WITHDRAW';
-    else if (anyClose) this.fleet.phase = 'ENGAGE';
-    else this.fleet.phase = 'SEARCH';
+    // 滞回：航迹 churn 会让"敌值"在几秒内 80↔130 抖动，若每次 tick 直接翻 phase，
+    // 舰队会在「脱离→交战→脱离」间反复横跳（sandbox 后半段就是这种振荡）。
+    if (forced) {
+      this.fleet._wdVotes = (this.fleet._wdVotes || 0) + 1;
+      if (this.fleet._wdVotes >= 2) this.fleet.phase = 'WITHDRAW';
+    } else {
+      this.fleet._wdVotes = 0;
+      if (this.fleet.phase === 'WITHDRAW') {
+        this.fleet._reVotes = (this.fleet._reVotes || 0) + 1;
+        if (this.fleet._reVotes >= 3) { this.fleet.phase = anyClose ? 'ENGAGE' : 'SEARCH'; this.fleet._reVotes = 0; }
+      } else {
+        this.fleet.phase = anyClose ? 'ENGAGE' : 'SEARCH';
+      }
+    }
   }
   // 舰队级撤退判据：兵力比低于剧本阈值 / 半数以上军舰重伤 / 旗舰重伤
   fleetForcedWithdraw(world, own, enemy) {
@@ -545,7 +689,10 @@ export class LocalAI {
     const hurt = mine.filter((s) => this.damageScore(s).score > 0.5).length;
     if (hurt / mine.length >= 0.5 && ratio < 0.95) return true;
     const flag = mine.find((s) => s.role === 'flagship') || mine[0];
-    if (flag && this.damageScore(flag).score > 0.85) return true;
+    // 旗舰重伤只在"舰队已处于劣势"时触发全队撤退；若战局占优（ratio≥1）不应因
+    // 一艘旗舰受伤就让整队脱离——否则 sandbox 里会看到旗舰队在均势下提前全队撤退、
+    // 后半段一炮不放（"脱离 全队背敌…撤退"）。
+    if (flag && this.damageScore(flag).score > 0.85 && ratio < 1.0) return true;
     // 任务已达成（如已击沉一艘敌方主力舰）而对手仍有战力 → 见好就收，保存实力
     if (this.objectiveAchieved(world) && ratio < 1.8) return true;
     return false;
@@ -664,15 +811,18 @@ export class LocalAI {
     let maxR = 0;
     for (const b of mains) maxR = Math.max(maxR, (b.data && b.data.maxRange_m) || 20000);
     if (rangeM > maxR) return 0;
-    const frac = rangeM / maxR;
-    // 一阶命中概率：近距约 20~25%，随距离按 (1-frac)^1.6 衰减；横越目标与低速目标更易命中
-    let p = 0.26 * Math.pow(clamp(1 - frac, 0, 1), 1.6);
+    // 接地：用模拟 fireSalvo 的散布口径（单炮 0.7%R+38 / 0.38%R+16）+ 齐射级横摇/运动误差，
+    // 对目标舰体投影（长×宽）求 2D 高斯命中率。替代 0.26·(1-frac)^1.6 的拍脑袋曲线——
+    // 旧曲线 8km 处估 ~11%，比实测 ~3% 高约 3 倍，导致 AI 的"该不该打/打谁"判断失真。
+    const L = TYPE_LENGTH_M[e.classifiedAs] || 130;
+    const W = L * 0.13;                                     // 典型长宽比 ~7.7
+    const sigmaRange = 0.011 * rangeM + 60;                 // 距离向 1σ（含齐射仰角/目标运动）
+    const sigmaDefl = 0.009 * rangeM + 40;                  // 方向向 1σ（含齐射方位/目标运动）
+    let p = (L * W) / (2 * Math.PI * sigmaRange * sigmaDefl);
     const brg = bearing2d(ship.pos, e.tr.pos);
     const aspect = aspectAngle(e.tr.courseDeg || 0, brg) * Math.PI / 180;
     p *= 0.62 + 0.55 * Math.abs(Math.sin(aspect));           // 舷侧投影大
     p *= clamp(1.15 - (e.tr.speedKn || 15) * 0.012, 0.7, 1.1);
-    const size = (e.classifiedAs === 'BB' || e.classifiedAs === 'CV') ? 1.25 : (e.classifiedAs === 'DD' ? 0.85 : 1.0);
-    p *= size;
     const fc = ship.fireControlOperational ? 1 : 0.35;
     p *= fc;
     const sea = world.env && world.env.seaState !== undefined ? world.env.seaState : 2;
@@ -712,9 +862,23 @@ export class LocalAI {
     return { min: band[0], max: band[1], night, visNm, radar, iz, label: night ? '夜战' : '日间' };
   }
 
-  // ── 火控质量门限：航迹质量不足以支撑命中时不倾泻弹药 ──────────────────────
-  // 判据：距离（决战距离±）/航迹误差 errM,errDeg/识别置信度/航迹新鲜度/弹药余量。
-  // 不合格 → 停火，或只打一发校射（史实：远距单发修正，等距离缩短再全齐射）。
+  // ── 火控质量门限 ──────────────────────────────────────────────────────────
+  // 判据：读模拟刚算出的火控解算质量（quality），而不是 AI 自己估的命中率。
+  // 人类指挥官看的是"我的火控锁没锁、解算稳不稳、航迹准不准"，而不是一个拍脑袋的百分比。
+  currentSolution(ship, track) {
+    const dirs = ship.directors || [];
+    for (const d of dirs) {
+      if (!d || d.destroyed || (d.health !== undefined && d.health <= 0.2)) continue;
+      const sol = d.solution || (d._fc && d._fc.solution);
+      if (!sol) continue;
+      if (sol.trackId === track.id) return sol;
+      // 航迹 id 翻新（失跟-重捕）时同一真实目标的新旧航迹 id 不同：火控还在追旧 id、
+      // AI 已指向新 id → 按"真实舰 id"匹配，避免 fireGate 长期卡在"火控锁定中"。
+      if (sol.targetShipId && track.trueIds && Array.isArray(track.trueIds) && track.trueIds.includes(sol.targetShipId)) return sol;
+    }
+    return null;
+  }
+
   fireGate(ship, e, r, world) {
     const tr = e.tr || {};
     const bat = (ship.mainBatteries || [])[0];
@@ -722,41 +886,49 @@ export class LocalAI {
     if (r > this.mainRange(ship) * 0.95) return { fire: false, reason: '超出主炮射程' };
     const age = tr.ageS !== undefined ? tr.ageS : 0;
     if (age > 40) return { fire: false, reason: '航迹过旧 ' + Math.round(age) + 's' };
-    const band = this.decisiveBand(ship, e.classifiedAs, world);
-    const p = this.estimateHitProb(ship, e, r, world);
     const ammo = this.pickAmmo(ship, e, r);
     const totalAmmo = (bat.ammo.AP || 0) + (bat.ammo.HE || 0);
     const load = bat.data && bat.data.ammo ? ((bat.data.ammo.AP || 0) + (bat.data.ammo.HE || 0)) : 0;
     const ammoFrac = load ? totalAmmo / load : 1;
     const targetLen = TYPE_LENGTH_M[e.classifiedAs] || 130;
-    // 识别：航迹给出舰种，或近距离（≤15km，目视可辨舰型/桅高）且置信度可接受
-    const identified = e.classifiedAs !== 'UNKNOWN' || (r <= 15000 && (tr.confidence === undefined || tr.confidence >= 0.35));
+    // 识别：航迹给出舰种，或中近距离（≤20km，目视可辨舰型/桅高）且置信度可接受。
+    // 旧值 15km 在苏里高这类 20~30km 战列线对射里会让双方全程判"识别不足"而不开火。
+    const identified = e.classifiedAs !== 'UNKNOWN' || (r <= 20000 && (tr.confidence === undefined || tr.confidence >= 0.35));
     const goodSolution = (tr.errM === undefined || tr.errM <= Math.max(targetLen, 250)) && (tr.errDeg === undefined || tr.errDeg <= 3);
+    const band = this.decisiveBand(ship, e.classifiedAs, world);
     const rel = r / Math.max(1000, band.max);
-    let pFull = rel <= 1.05 ? 0.02 : 0.05;          // 只有进入决战距离才允许全齐射
-    // 停火门限：昼间可放宽到决战带 1.35 倍；夜间无雷达必须贴到决战带内（史实萨沃岛日军
-    // 1.5~3km 才开火），有雷达才允许在带外沿先敌开火——这正是"雷达火控优势"的体现。
-    // 注意：night / radar 只能从 decisiveBand() 的返回值里取。原先误写成裸的
-    // `night` / `radar`，会抛 ReferenceError 把整个 LocalAI.tick 打断 —— 表现就是
-    // "AI 一旦要开火就彻底不动了"（T6.7: ai.decision 0 条）。
-    const holdMul = band.night ? (band.radar ? 1.20 : 1.02) : 1.35;
-    let pHold = rel > holdMul ? 0.03 : 0.006;
-    // 开火滞回：已经在打的舰不因一次解算抖动就停火（否则 FIRE/CEASE_FIRE 每 8s 对翻，
-    // 命令数翻倍而实际射速不变）。停火门槛放宽 30%，重新开火仍用原门槛。
-    const engagedNow = !!ship.commanded.firing;
-    if (engagedNow) pHold *= 0.7;
-    if (!identified) pFull = Math.max(pFull, 0.05);
-    if (!goodSolution) pFull = Math.max(pFull, 0.05);
-    if (ammoFrac < 0.25) { pFull = Math.max(pFull, 0.05); pHold = Math.max(pHold, 0.02); }
-    if (p < pHold) return { fire: false, ammo, p, reason: '命中概率' + (100 * p).toFixed(1) + '% 过低（' + (r / 1000).toFixed(1) + 'km）' };
-    if (p < pFull || !identified || !goodSolution) {
-      const why = [];
-      if (!identified) why.push('识别不足');
-      if (!goodSolution) why.push('解算误差大');
-      if (p < pFull) why.push('命中概率仅' + (100 * p).toFixed(1) + '%');
-      return { fire: true, ammo, salvoes: 1, mode: 'SPOT', p, reason: '单发校射（' + why.join('/') + '）' };
+    const inBand = rel <= 1.35;          // 带内/带外沿都算"有效交战距离"
+
+    // 读模拟的真实火控解算（updateFireControl 已在本 tick 算好，存于 director.solution）
+    const sol = this.currentSolution(ship, tr);
+    const q = sol ? sol.quality : 0;
+
+    // 人类式分层：
+    //  1) 火控还没锁上这条航迹 → 打一发校射建立解算（"开火试探"，先校射再齐射）；
+    //  2) 解算质量足够（quality 收敛）→ 全齐射；
+    //  3) 解算质量不足 → 单发校射继续收敛；
+    //  4) 识别不足 / 航迹误差大 → 也只打校射，不倾泻。
+    if (!sol) {
+      // 纯方位航迹（水听器/声呐无测距）永远算不出火控解算 → 不下开火令。
+      // 否则 FIRE 命令"被接受"（order.effective applied=true）但火控永远解不出弹道，
+      // 一发 gun.fire 都不产生——AI 却以为自己在射击、不再重发，整舰"假射击"几十分钟。
+      if (tr.bearingOnly === true || tr.hasRange === false) return { fire: false, ammo, reason: '纯方位航迹，无法解算' };
+      // 还没建立解算时先打一发校射来"喂"解算（这正是校射的意义）。
+      // 只有"远距 + 识别不足"才压住火力（避免 20km 外对不明目标乱放暴露阵位）。
+      const mainR = this.mainRange(ship);
+      if (!identified && r > Math.min(20000, mainR * 0.8)) return { fire: false, ammo, reason: '识别不足，火控未锁定' };
+      if (ammoFrac < 0.1) return { fire: false, ammo, reason: '弹药不足' };
+      return { fire: true, ammo, salvoes: 1, mode: 'SPOT', reason: '火控锁定中，单发校射' };
     }
-    return { fire: true, ammo, salvoes: Infinity, mode: 'FULL', p, reason: '命中概率' + (100 * p).toFixed(1) + '% 全齐射' };
+    const fullQ = (inBand ? 0.24 : 0.5) * (band.night ? 1.25 : 1.0);   // 带内 0.24 即可全齐射；带外要更稳才倾泻。夜战再 +25%（炮口闪光暴露阵位，史实条令）
+    // 未识别舰种但解算已收敛 -> 允许齐射：远距编队里"UNKNOWN"是常态，
+    // 若一律只打单发，整条战列线会长期停在低射速的校射状态。
+    if (!identified && q < 0.6) return { fire: true, ammo, salvoes: 1, mode: 'SPOT', reason: '识别不足' };
+    if (!goodSolution) return { fire: true, ammo, salvoes: 1, mode: 'SPOT', reason: '航迹误差大，单发校射' };
+    if (ammoFrac < 0.25) return { fire: true, ammo, salvoes: 1, mode: 'SPOT', reason: '弹药不足，节约校射' };
+    if (q >= fullQ) return { fire: true, ammo, salvoes: Infinity, mode: 'FULL', reason: '解算质量' + (100 * q).toFixed(0) + '% 全齐射' };
+    if (q >= 0.12) return { fire: true, ammo, salvoes: 1, mode: 'SPOT', reason: '解算质量' + (100 * q).toFixed(0) + '% 单发校射' };
+    return { fire: false, ammo, reason: '解算质量' + (100 * q).toFixed(0) + '% 过低' };
   }
 
   assignTargets(world, mine, enemies, R) {
@@ -775,6 +947,14 @@ export class LocalAI {
       if (m2 && m2.firing && m2.targetTrackId) engaged.set(m2.targetTrackId, (engaged.get(m2.targetTrackId) || 0) + 1);
     }
     const spreadOK = mine.length >= enemies.length;   // 我方舰数不占优时不铺开，改为集中火力
+    // 接地：舰数占优还不够，得有穿甲能力才铺开——否则集中火力集火一个（打不穿就攒伤害）
+    const flagShip2 = mine.find((s) => s.role === 'flagship') || mine[0];
+    let avgKill = 0;
+    if (flagShip2 && enemies.length) {
+      for (const e2 of enemies) avgKill += this.killability(flagShip2, e2.classifiedAs, e2.rangeFromFlag !== undefined ? e2.rangeFromFlag : dist2d(flagShip2.pos, e2.tr.pos));
+      avgKill /= enemies.length;
+    }
+    const canSpread = spreadOK && avgKill > 0.4;
     const envA = (world && world.env) || {};
     const nightA = (envA.sunAltDeg !== undefined && envA.sunAltDeg !== null) ? envA.sunAltDeg < -6 : ((envA.lightLevel || 1) < 0.10);
     for (const ship of mine) {
@@ -788,13 +968,23 @@ export class LocalAI {
       for (const e of enemies) {
         const r = dist2d(ship.pos, e.tr.pos);
         const pHit = this.estimateHitProb(ship, e, r, world);
-        if (pHit < 0.012) continue;
+        // "值不值得打"的下限：旧值 1.2% 会让 10~20km 的驱逐舰/远距主力舰全部被过滤，
+        // 整支舰队因为"估计打不中"而完全沉默（实测苏里高轴心 5km 打 1744 发只有 7 中，
+        // 因为大部分时间一个目标都不选）。真实条令是"在有效射程内就校射压制"。
+        if (pHit < 0.004) continue;
         const v = this.trackValue(e);
         // 威胁：敌主炮口径量级 × 逼近程度（对方越近威胁越大）
-        const cal = ENEMY_CALIBER[e.classifiedAs] || 152;
-        const closing = clamp(1 + (20000 - Math.min(r, 20000)) / 12000, 1, 2.4);
-        const threat = (cal / 203) * closing;
-        let score = v * (0.55 + 0.6 * threat) * (0.25 + 3.2 * pHit);
+        // 威胁（接地：敌口径能否打穿我方装甲带 × 逼近程度）
+        // 威胁（接地：敌炮能否打穿我方装甲 × 逼近 + 鱼雷窗口威胁）
+        const threat = this.threatOf(ship, e.classifiedAs, r) + this.torpedoThreatOf(ship, e.classifiedAs, r);
+        // 可击沉性（接地：能否穿甲 × 吨位倒数）——人类指挥官不会把炮弹浪费在打不穿的目标上
+        const kill = this.killability(ship, e.classifiedAs, r);
+        let score = v * (0.55 + 0.6 * threat) * (0.25 + 3.2 * pHit) * (0.4 + 1.2 * kill);
+        // 补刀：航迹航速明显低于舰种典型值 → 目标已重伤（进水/动力损），集中火力了结它
+        const typSpd = ({ CV: 30, BB: 28, BC: 30, CA: 32, CL: 33, DD: 35, UNKNOWN: 28 })[e.classifiedAs] || 28;
+        if (e.tr.speedKn !== undefined && e.tr.speedKn > 0 && e.tr.speedKn < typSpd * 0.55) score *= 1.45;
+        // 但已明显失能（航速塌到 ~0，正在下沉/弃舰）就别再浪费弹药——转去打还在动的目标
+        if (e.tr.speedKn !== undefined && e.tr.speedKn < 3) score *= 0.30;
         const nEng = engaged.get(e.tr.id) || 0;
         // 任务目标（胜利条件）优先；同类里优先更好打沉的（战巡 > 新式战列舰）
         if (this.isObjectiveTarget(world, e.tr)) {
@@ -808,8 +998,8 @@ export class LocalAI {
           score *= 0.55;   // 有明确任务目标时，别把火力浪费在另一艘主力舰/巡洋舰上
         }
         // 劣势时集中火力：把全队压在编队焦点目标上，而不是分散成两处各打各的
-        if (!spreadOK && e.tr.id === this.fleet.focusTrackId) score *= 1.45;
-        if (nEng === 0) score *= spreadOK ? 1.30 : 0.85;                      // 占优时才铺开分配
+        if (!canSpread && e.tr.id === this.fleet.focusTrackId) score *= 1.45;
+        if (nEng === 0) score *= canSpread ? 1.30 : 0.85;                      // 占优且能穿甲才铺开分配
         else if (nEng >= 3) score *= 0.45;                                     // 最多 3 艘集火同一目标
         else if (nEng >= 2 && !HVU_TYPES[e.classifiedAs]) score *= 0.55;        // 非高价值目标不扎堆
         if (e.tr.id === this.fleet.focusTrackId) score *= 1.25;               // 集火加成
@@ -853,7 +1043,10 @@ export class LocalAI {
         // 不换靶：T2 航迹在海岸/烟幕附近会反复失跟-重捕，旧逻辑每次都用新 id 重发 FIRE
         // （实测第一次瓜岛 600s FIRE 命令 188 条）。但不能按 targetLostHoldS(45s) 那么久：
         // 45s 会让舰在失跟窗口里对真正的新目标也不开火，实测萨沃岛 gun.hit 从 127 掉到 39。
-        if (!curStill && world.t - (mem.lastTargetT || -1e9) < this.targetChurnHoldS) continue;
+        // 【修复】原用 lastTargetT（每 tick 都刷新）导致 world.t-lastTargetT≈0 < 12s 恒成立，
+        // 目标一失跟就永久卡在"不换靶"→ 整场停火（丹麦海峡盟军四舰各只打 8-16 发）。
+        // 改用 lastAssignT（最后一次真正指派目标的时间），12s 后才允许换靶重打。
+        if (!curStill && world.t - (mem.lastAssignT || -1e9) < this.targetChurnHoldS) continue;
       }
       const targetChanged = mem.targetTrackId !== best.e.tr.id || mem.ammo !== gate.ammo;
       // 夜间照明：目标在夜暗中未被识别时打照明弹（史实：日军在萨沃岛大量使用照明弹与探照灯）。
@@ -874,7 +1067,10 @@ export class LocalAI {
       // 至少隔 fireHoldS（默认 60s）才重发，目标/弹种变化仍然立即生效（持续齐射模式下
       // commanded.firing 一直为 true，gunnery 的实际射速不受这条限制影响）。
       const fireModeChanged = mem.fireMode !== gate.mode;
-      if (!mem.firing || !ship.commanded.firing || fireModeChanged) {
+      // 注意不能只看 mem.firing：目标航迹翻新后 commanded.targetTrackId 可能仍指向已消亡的旧航迹，
+      // 此时 gunnery 会清掉 commanded.firing（见 updateFireControl 的 TARGET_LOST 分支），
+      // 但更需要 AI 侧主动重发 FIRE——所以 targetChanged 也要能打破"看起来正在射击"的状态。
+      if (!mem.firing || !ship.commanded.firing || fireModeChanged || targetChanged) {
         const modeCooldownOk = world.t - mem.lastFireT >= this.fireModeHoldS;
         if (targetChanged || (fireModeChanged && modeCooldownOk) || world.t - mem.lastFireT >= this.fireHoldS) {
           // 首次指定目标单独发 ASSIGN_TARGET（保留"指定目标"这一可读事件）；此后换靶时
@@ -886,6 +1082,26 @@ export class LocalAI {
           if (targetChanged) R.push('【火力】' + ship.name + '→' + this.label(best.e) + ' ' + (best.r / 1000).toFixed(1) + 'km ' + gate.reason + ' 用' + gate.ammo);
           mem.targetTrackId = best.e.tr.id; mem.ammo = gate.ammo; mem.lastAssignT = world.t;
           mem.firing = true; mem.fireMode = gate.mode; mem.lastFireT = world.t;
+          // ── 副炮 ────────────────────────────────────────────────────────
+          // 主炮对付装甲目标时副炮并不闲着：近距/中小目标用副炮补刀（射速快、弹道平）。
+          // 走独立命令通道（battery:'secondary'），有自己的目标/弹药/节流，不阻塞主炮齐射。
+          // 只算对海副炮（role='secondary'），不含高射炮（role='aa'）
+          const secBats = (ship.secondaryBatteries || []).filter((b2) => b2.role === 'secondary'
+            && !b2.destroyed && (b2.health === undefined || b2.health > 0.15)
+            && (((b2.ammo && b2.ammo.HE) || 0) + ((b2.ammo && b2.ammo.AP) || 0)) > 0);
+          if (secBats.length) {
+            const secRange = Math.max.apply(null, secBats.map((b2) => (b2.data && b2.data.maxRange_m) || 10000));
+            const secInRange = best.r <= secRange * 0.9;
+            const secTargetChanged = mem.secTargetTrackId !== best.e.tr.id;
+            if (secInRange && (secTargetChanged || world.t - (mem.lastSecFireT || -1e9) >= 60)) {
+              this.order(world, {
+                shipId: ship.id, kind: 'FIRE',
+                params: { trackId: best.e.tr.id, ammo: 'HE', salvoes: Infinity, battery: 'secondary' },
+              });
+              mem.lastSecFireT = world.t; mem.secTargetTrackId = best.e.tr.id;
+              if (secTargetChanged) R.push('【副炮】' + ship.name + ' 副炮对' + this.label(best.e) + ' ' + (best.r / 1000).toFixed(1) + 'km 开火');
+            }
+          }
           if (gate.mode === 'SPOT') R.push('【控火】' + ship.name + ' ' + gate.reason + '（节约弹药，待距离缩短/解算收敛）');
         } else {
           // 被节流：跟随实际 commanded 状态，避免把"已在持续射击"误记成"还需要下令"
@@ -899,18 +1115,35 @@ export class LocalAI {
   pickAmmo(ship, e, rangeM) {
     const b = (ship.mainBatteries || [])[0];
     const ap = b ? b.ammo.AP : 0, he = b ? b.ammo.HE : 0;
-    let want = ARMORED_TYPES[e.classifiedAs] ? 'AP' : 'HE';
-    if (want === 'AP' && ap < 30) want = he > 0 ? 'HE' : 'AP';
-    if (want === 'HE' && he < 30) want = ap > 0 ? 'AP' : 'HE';
+    const prof = TYPE_COMBAT_PROFILE[e.classifiedAs] || TYPE_COMBAT_PROFILE.UNKNOWN;
+    // 弹药选择：
+    //  · 软目标（无主装甲带，带 ≤25 mm）：HE——AP 会过穿、引信不触发；
+    //  · 装甲目标：**一律首选穿甲弹**。即使当前距离的估算穿深不足，AP 仍有跳弹/部分穿透/
+    //    打进弹药库与动力舱的机会，而 HE 对装甲带几乎无效——实测丹麦海峡变体局里
+    //    威尔士亲王打俾斯麦 533 发 HE、零穿透，等于白打。穿深不足时更该用 AP 去赌要害，
+    //    而不是用 HE 洗甲板。
+    let want = (prof.belt_mm <= 25) ? 'HE' : 'AP';
+    if (want === 'AP' && ap <= 0) want = he > 0 ? 'HE' : 'AP';
+    if (want === 'HE' && he <= 0) want = ap > 0 ? 'AP' : 'HE';
     return want;
   }
 
   // ── 机动：T 字位 / 免疫区 / 夜间保守 ──────────────────────────────────────
   maneuver(world, mine, enemies, R) {
     const hvuPresent = mine.some((s) => HVU_TYPES[s.type] && !this.memFor(s).withdraw);
+    const centroid = this.centroid(mine);   // 编队形心（用于战斗凝聚力安全网）
     for (const ship of mine) {
       const mem = this.memFor(ship);
       if (mem.withdraw) continue;
+      // 战斗凝聚力安全网：任何非撤离舰离编队形心过远（>25km）就掉头归队。
+      // 防止"前出掩护/雷击脱离"等任务把单舰带出战场一去不回（沙盒实测奥班农曾离队 29km）。
+      if (mine.length > 1) {
+        const dc = dist2d(ship.pos, centroid);
+        if (dc > 25000 && this.setCourse(world, ship, bearing2d(ship.pos, centroid), mem)) {
+          R.push('【归队】' + ship.name + ' 距编队' + Math.round(dc / 1000) + 'km → 掉头归队');
+          continue;
+        }
+      }
       if (world.t < mem.evadeUntil) continue;               // 避雷机动优先
       // B1：正在雷击突击/发射后脱离的舰由 torpedoAttack 指挥，战列线机动让位
       if (mem.attacking && world.t < mem.attacking) continue;
@@ -937,6 +1170,10 @@ export class LocalAI {
       const r = dist2d(ship.pos, e.tr.pos);
       const enemyCourse = e.tr.courseDeg !== undefined ? e.tr.courseDeg : bearing2d(ship.pos, e.tr.pos);
       const band = this.decisiveBand(ship, e.classifiedAs, world);
+      // 接地：按穿甲不对称微调交战带——我能打穿它/它打不穿我 → 贴近；反之 → 拉开
+      const verdict = this.rangeVerdict(ship, e.classifiedAs, r);
+      if (verdict === 'CLOSE') { band.min *= 0.85; band.max *= 0.90; }
+      else if (verdict === 'OPEN') { band.min *= 1.20; band.max *= 1.30; }
       const brgEnemy = bearing2d(ship.pos, e.tr.pos);
       const usable = (ship.mainBatteries || []).length > 0 && r < Math.max(20000, 1.05 * this.mainRange(ship));
       let desired, phase;
@@ -957,6 +1194,20 @@ export class LocalAI {
         }
         phase = 'APPROACH';
         desired = normDeg(brgEnemy + mem.sideSign * 20);
+      } else if (r < 4000 && (ship.type === 'BB' || ship.type === 'BC' || ship.type === 'CA')) {
+        // ── 近距离遭遇（≤4 km）：教条上的"拉开"已无意义——背敌转向只会把炮尾对敌、
+        //    半舷火力全废（实测：俾斯麦全程艏向 0~20°，8 门主炮只有 4 门能打，
+        //    30 分钟被诺福克打出 221:6 的命中比）。这里改为转舷侧全炮对敌，
+        //    先把对方打瘫再谈距离；舷侧一旦选定就锁定，避免每几秒翻一次。
+        phase = 'BROWL';
+        // 舷侧锁定：只有目标方位相对上次锁定变化 >60°（目标绕过正横）才重新选舷，
+        // 避免每几秒翻一次导致原地来回掉头。
+        if (mem.brawlSign === undefined || Math.abs(normDeg180(brgEnemy - (mem.brawlBrg === undefined ? brgEnemy : mem.brawlBrg))) > 60) {
+          const bA = normDeg(brgEnemy + 90), bB = normDeg(brgEnemy - 90);
+          mem.brawlSign = Math.abs(normDeg180(bA - ship.heading)) <= Math.abs(normDeg180(bB - ship.heading)) ? 1 : -1;
+          mem.brawlBrg = brgEnemy;
+        }
+        desired = normDeg(brgEnemy + mem.brawlSign * 90);
       } else if (r < band.min) {
         // ── 过近（危险区）：越陷越深就直接转背敌方向拉开，浅则只偏 25°
         phase = 'OPEN';
@@ -969,16 +1220,22 @@ export class LocalAI {
         // ── 交战阶段：抢占 T 字位（横阵对敌纵列），并向决战距离内沿（有效命中距离）收缩
         phase = 'ENGAGE';
         const cA = normDeg(enemyCourse + 90), cB = normDeg(enemyCourse - 90);
-        if (mem.crossSign === undefined || world.t - (mem.crossSignT || -1e9) > 240 || mem.crossSignTrack !== mem.targetTrackId) {
-          let bestH = cA, bestCost = 1e9;
-          for (const h of [cA, cB]) {
-            const r240 = this.predictRange(ship, h, e, 240);
-            let cost = Math.abs(normDeg180(h - ship.heading)) * 0.5;
-            if (r240 < band.min) cost += (band.min - r240) / 300;
-            if (r240 > band.max) cost += (r240 - band.max) / 300;
-            if (cost < bestCost) { bestCost = cost; bestH = h; }
-          }
-          mem.crossSign = bestH === cA ? 1 : -1; mem.crossSignT = world.t; mem.crossSignTrack = mem.targetTrackId;
+        const costOf = (h) => {
+          const r240 = this.predictRange(ship, h, e, 240);
+          let cost = Math.abs(normDeg180(h - ship.heading)) * 0.5;
+          if (r240 < band.min) cost += (band.min - r240) / 300;
+          if (r240 > band.max) cost += (r240 - band.max) / 300;
+          return cost;
+        };
+        if (mem.crossSign === undefined || mem.crossSignTrack !== mem.targetTrackId) {
+          mem.crossSign = costOf(cA) <= costOf(cB) ? 1 : -1;
+          mem.crossSignT = world.t; mem.crossSignTrack = mem.targetTrackId;
+        } else if (world.t - (mem.crossSignT || -1e9) > 240) {
+          // 换舷＝一次大角度掉头：只有另一侧明显更优（≥30%）才换，否则保持当前舷侧。
+          const cur = mem.crossSign > 0 ? costOf(cA) : costOf(cB);
+          const alt = mem.crossSign > 0 ? costOf(cB) : costOf(cA);
+          if (alt < cur * 0.7) mem.crossSign = -mem.crossSign;
+          mem.crossSignT = world.t;
         }
         desired = mem.crossSign > 0 ? cA : cB;
         if (r > band.min) {   // 仍偏远：向敌压近（最多 40°），把距离收到决战距离内沿
@@ -988,7 +1245,7 @@ export class LocalAI {
       }
       mem.phase = phase;
       if (this.setCourse(world, ship, desired, mem, phase === 'APPROACH' && r > band.max * 1.4)) {
-        const tag = phase === 'APPROACH' ? '接近' : (phase === 'ENGAGE' ? '交战(T字位)' : '拉开');
+        const tag = phase === 'APPROACH' ? '接近' : phase === 'BROWL' ? '近战·舷侧齐射' : (phase === 'ENGAGE' ? '交战(T字位)' : '拉开');
         R.push('【' + tag + '】' + ship.name + ' 航向' + Math.round(normDeg(desired)) +
           ' 决战距离' + (band.min / 1000).toFixed(0) + '-' + (band.max / 1000).toFixed(0) + 'km' + (band.night ? '(夜)' : '') +
           ' 现距' + (r / 1000).toFixed(1) + 'km');
@@ -1268,13 +1525,18 @@ export class LocalAI {
             'km 舷角' + Math.round(tsol.aspect) + '°（窗口 ' + (winMin / 1000).toFixed(1) + '-' + (winMax / 1000).toFixed(1) + 'km 全速）');
         }
         this.setSpeed(world, dd, dd.data.speedMax_kn || 30, mem);
+        // 进攻性烟幕：突击占位时已进入敌炮有效射程（<10km）却还没到雷击窗口，
+        // 施烟遮断敌方目视/光学，掩护驱逐舰高速逼近——史实日军雷击突击的常规手段。
+        if (tsol.r < 10000 && !dd.flags.smokeOn && this.smoke(world, dd, true)) {
+          R.push('【烟幕】' + dd.name + ' 突击占位施烟（' + (tsol.r / 1000).toFixed(1) + 'km）');
+        }
         continue;
       }
       // 友舰安全走廊：射向 ±(扇面/2+2°) 内、航程+1000m 内不得有本舰队友
       const trackCourse = bearing2d(dd.pos, target.tr.pos);
       const errM = target.tr.errM !== undefined ? target.tr.errM : 400;
       const spread = clamp(rad2deg(2.2 * Math.atan2(errM, Math.max(1000, tsol.r))) + 2, 2, 12);
-      if (!this.corridorClear(world, dd, target, trackCourse, spread, tsol.r)) continue;
+      if (!this.corridorClear(world, dd, target, trackCourse, spread, tsol.r, kn2mps(spec.speedsKn[0]))) continue;
       // 管数：高价值目标 6 管，一般 4 管；保留至少 2 管
       const loaded = mount.tubesLoaded;
       let tubes = ARMORED_TYPES[target.classifiedAs] || target.classifiedAs === 'CV' ? Math.min(loaded, 6) : Math.min(loaded, 4);
@@ -1343,8 +1605,9 @@ export class LocalAI {
     // 扇面宽度：目标位置横向不确定度（航迹 errM）换算成角度 + 2° 余量
     const errM = tr.errM !== undefined ? tr.errM : 400;
     const spreadBase = clamp(rad2deg(2.2 * Math.atan2(errM + 150, Math.max(1000, solFast.runM))) + 2, D.fanMinDeg, D.fanMaxDeg);
-    // 友舰安全走廊：射向 ±(扇面/2+2°)、航程+1200m 内不得有队友
-    if (!this.corridorClear(world, ship, e, solFast.trackCourseDeg, spreadBase, solFast.runM)) return null;
+    // 友舰安全走廊：射向 ±(扇面/2+2°)、航程+1200m 内不得有队友；
+    // 另按鱼雷实际档速做相对运动 CPA 预测，拦住"友舰随后切进雷道"的误伤
+    if (!this.corridorClear(world, ship, e, solFast.trackCourseDeg, spreadBase, solFast.runM, kn2mps(spec.speedsKn[speedIdx]))) return null;
     const score = this.torpShotScore(e, r, aspect, solFast.tofS, spec, speedIdx);
     return { ship, mem: sh.mem, mount: sh.mount, spec, target: e, targetId: tr.id,
       r, aspect, tofS: solFast.tofS, courseDeg: normDeg(solFast.trackCourseDeg), speedIdx, spreadBase, score };
@@ -1473,14 +1736,50 @@ export class LocalAI {
     return bearing2d(ship.pos, aim);
   }
 
-  corridorClear(world, dd, target, courseDeg, spread, runM) {
+  // 友舰安全走廊：射界内不得有友舰。
+  // 【两条判据都必须有】旧实现只看"发射瞬间"的友舰方位——实测 Denmark 沙盒里高雄对西发射 4 条
+  // 九三式时，大和在扇面外 50°（判安全），但大和随后接到"掉头朝西"的命令，正好迎向雷道；
+  // 鱼雷飞了 33 秒后 4 条**全部命中自己的旗舰**（torp.hit friendly=true），大和再中一发水线下
+  // 203mm 就打穿弹药库殉爆。所以必须叠加"相对运动 CPA"：按友舰当前/受令航向航速外推，
+  // 判断它在鱼雷飞行窗口内会不会切进雷道。
+  corridorClear(world, dd, target, courseDeg, spread, runM, torpSpeedMps) {
     const half = clamp(spread / 2 + 2, 2, 12) * Math.PI / 180;
+    const vTorp = (torpSpeedMps && isFinite(torpSpeedMps) && torpSpeedMps > 1) ? torpSpeedMps : 18;
+    const tMax = clamp(runM / vTorp, 1, 240);           // 鱼雷到达射程末端的最长时间
+    const dirX = Math.sin(courseDeg * Math.PI / 180), dirY = Math.cos(courseDeg * Math.PI / 180);
     for (const f of world.shipsOf(this.side)) {
       if (f.id === dd.id || !f.isAfloat) continue;
-      const brg = bearing2d(dd.pos, f.pos);
       const d = dist2d(dd.pos, f.pos);
       if (d > runM + 1200) continue;
+      // (1) 发射瞬间：友舰已落在雷道扇面内
+      const brg = bearing2d(dd.pos, f.pos);
       if (Math.abs(normDeg180(brg - courseDeg)) * Math.PI / 180 < half + Math.atan2(30, Math.max(200, d))) return false;
+      // (2) 友舰位于雷道前方时，按"鱼雷到达它所需时间"估计它最多能横向收多少：
+      //     即使发射瞬间它在扇面外，只要它能在鱼雷到达前把横向距离压进安全距离，就拒绝。
+      //     这正是丹麦海峡沙盒里"高雄 4 雷打中大和"的几何：发射时大和在扇面外 50°，
+      //     但 5 秒后它接到掉头朝西的命令，33 秒后正好横在雷道上，4 条雷全部命中。
+      const rx = f.pos.x - dd.pos.x, ry = f.pos.y - dd.pos.y;
+      const along = rx * dirX + ry * dirY;                 // 沿雷道的纵向距离（+ = 前方）
+      if (along > 0 && along < runM + 600) {
+        const lateral = Math.abs(rx * dirY - ry * dirX);    // 横向偏移
+        const tf = along / vTorp;                           // 鱼雷到达该纵向位置的时间
+        const vmax = kn2mps(Math.max(20, (f.data && f.data.speedMax_kn) || 25));
+        const reach = Math.min(lateral, vmax * tf);         // 友舰可能朝雷道收缩的横向距离（上界）
+        const safe = 220 + 0.55 * ((f.data && f.data.loa_m) || 100);   // 大和 263m → 365m
+        if (lateral - reach < safe) return false;
+      }
+      // (3) 相对运动 CPA（补充判据）：两者航向接近平行、鱼雷从后追赶时，CPA 会很小
+      const fh = (f.commanded && f.commanded.heading !== undefined && f.commanded.heading !== null) ? f.commanded.heading : f.heading;
+      const fkn = (f.commanded && f.commanded.speed !== undefined && f.commanded.speed !== null) ? f.commanded.speed : f.speed;
+      const fv = kn2mps(clamp(fkn || 0, 0, 40));
+      const ux = fv * Math.sin(fh * Math.PI / 180) - vTorp * dirX;
+      const uy = fv * Math.cos(fh * Math.PI / 180) - vTorp * dirY;
+      const uu = ux * ux + uy * uy;
+      let tc = 0;
+      if (uu > 1e-6) tc = clamp(-(rx * ux + ry * uy) / uu, 0, tMax);
+      const cpa = Math.hypot(rx + ux * tc, ry + uy * tc);
+      const safeCpa = 180 + 0.45 * ((f.data && f.data.loa_m) || 100);
+      if (cpa < safeCpa) return false;
     }
     return true;
   }
@@ -1573,8 +1872,10 @@ export class LocalAI {
   // 去重由 react() 负责：同一 mode 不重发；被外部/玩家改掉也至少隔 smokeOnS 再接管。
   dcMode(ship, mem, tNow) {
     const comps = ship.compartments || [];
-    // 1) 弹药库：起火 / 被击穿且尚未注水 → 注水保命（最高优先，史实红线）
-    const magThreat = comps.some((c) => c.isMagazine && (c.fire > 0.03 || (c.breached && c.flood_m3 < c.volume_m3 * 0.15)));
+    // 1) 弹药库：起火 / 被击穿且尚未注水 / 殉爆风险(magRisk)升高 → 注水保命（最高优先，史实红线）
+    // 原判据只看 fire 与 breach，漏了"被直击但未起火"的 magRisk：高雄 7 次弹药库被命中
+    // （magRisk 0.04–0.09、无明火）就没触发 magazine 注水，只能干等殉爆概率累积。
+    const magThreat = comps.some((c) => c.isMagazine && (c.fire > 0.03 || c.magRisk > 0.05 || (c.breached && c.flood_m3 < c.volume_m3 * 0.15)));
     if (magThreat) return 'magazine';
     // 2) 进水：进水速率是否超过排水泵能力 / 已到沉没风险量级 / 大横倾
     let rate = 0;

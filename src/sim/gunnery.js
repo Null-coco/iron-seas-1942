@@ -30,7 +30,7 @@
 //     影响初速 → 射程；火控装订的初速与真实初速存在 ±2°C 药温估计误差。
 // ============================================================================
 import { clamp, normDeg, normDeg180, deg2rad, rad2deg, dist2d, bearing2d, kn2mps, mps2kn } from '../core/util.js';
-import { MIL_DEG, DEG_PER_MIL, makeShell, effectiveMv, solutionForRange } from './ballistics.js';
+import { MIL_DEG, DEG_PER_MIL, makeShell, effectiveMv, solutionForRange, penetrationDetail } from './ballistics.js';
 
 // ---------------------------------------------------------------------------
 // 友军误伤（friendly fire）记账
@@ -154,6 +154,10 @@ const ROLL_ELEV_AMP_DEG = 0.012;    // 每度横摇幅值附加
 const ROLL_BEAR_BASE_DEG = 0.006;
 const ROLL_BEAR_SEA_DEG = 0.002;
 const ROLL_BEAR_AMP_DEG = 0.007;
+// 近距离混战：目标进入该距离内，副炮与高射炮压平对海，所有炮一起开火。
+// 史实：萨沃岛、苏里高的近距离遭遇战里，副炮/高射炮都在平射；远距离仍按主/副炮通道分配，
+// 避免高射炮在 10 km 外白白消耗弹药。数值可调（调大 = 更早全炮开火）。
+const CLOSE_ALL_GUNS_M = 3000;
 function lookupRate(table, cal, dflt) {
   let best = dflt, bd = 1e9;
   for (const [c, v] of table) { const d = Math.abs(c - cal); if (d < bd) { bd = d; best = v; } }
@@ -620,38 +624,47 @@ function servoAligned(ship, battery, sol, tolDeg) {
 // ---------------------------------------------------------------------------
 // 局部控制（指挥仪全毁时的降级）
 // ---------------------------------------------------------------------------
-function buildLocalSolution(ship, battery, world, track) {
+function buildLocalSolution(ship, battery, world, track, ammoOverride) {
   const now = world.t;
   const fc = ship._fc || ensureFC(ship, world);
   let ls = battery._localState;
   if (!ls) {
     ls = battery._localState = {
-      nextT: 0, bearingBiasDeg: world.rng.normal(0, 1.2),
-      rangeBias: world.rng.normal(0, 0.10), elevBias: world.rng.normal(0, 0.4),
+      nextT: 0, bearingBiasDeg: world.rng.normal(0, 0.6),
+      rangeBias: world.rng.normal(0, 0.04), elevBias: world.rng.normal(0, 0.25),
     };
   }
   if (now >= ls.nextT) {
     if (!track) { battery._localSol = null; return null; }
     const R = dist2d(ship.pos, track.pos);
     const B = bearing2d(ship.pos, track.pos);
-    const ammo = pickAmmo(battery, (ship.commanded && ship.commanded.fireAmmo) || 'AP');
+    const ammo = pickAmmo(battery, ammoOverride || (ship.commanded && ship.commanded.fireAmmo) || 'AP');
     if (!ammo) { battery._localSol = null; return null; }
     const shell = makeShell(ship, battery, ammo);
     const mv = effectiveMv(battery, shell, fc.powderTempEstC);
-    const bearing = normDeg(B + ls.bearingBiasDeg + world.rng.normal(0, 1.0));
-    // 炮位测距仪误差：量程短、精度差（~10%）
-    const range = Math.max(300, R * (1 + ls.rangeBias + world.rng.normal(0, 0.10)));
+    // 局部控制的测距精度与距离相关：近距离光学测距本可以达到 2~3%（点射/近战），
+    // 远距离没有指挥仪集中解算则明显更差（沿用旧标定 ~10%）。
+    const closeLocal = R <= 6000;
+    // 火控冗余：指挥仪全毁后，舰桥/炮塔上的光学测距仪仍在，炮位可据此求射击诸元。
+    // 有测距仪 → 局部控制明显好于"完全瞎打"（这也是史实：损失的只是集中解算，不是测距能力）。
+    const rfOk = (ship.rangefinders || []).some((rf) => rf && !rf.destroyed && (rf.health === undefined || rf.health > 0.2));
+    const errMul = rfOk ? (closeLocal ? 0.6 : 0.7) : 1;
+    const bearing = normDeg(B + ls.bearingBiasDeg + world.rng.normal(0, (closeLocal ? 0.5 : 1.0) * errMul));
+    const range = Math.max(300, R * (1 + ls.rangeBias + world.rng.normal(0, (closeLocal ? 0.04 : 0.10) * errMul)));
     const sol = solutionForRange(shell, range, mv);
     if (sol.outOfRange) { battery._localSol = null; ls.nextT = now + 6; return null; }
     const lim = elevLimits(battery);
     const elev = clamp(sol.elevDeg + ls.elevBias + world.rng.normal(0, 0.3) + Math.abs(ship.roll || 0) * 0.12, lim.lo, lim.hi);
     battery._localSol = {
-      t: now, valid: true, outOfRange: false, degraded: true, source: 'LOCAL',
+      t: now, valid: true, outOfRange: false, degraded: true, source: rfOk ? 'LOCAL_RF' : 'LOCAL',
       bearingDeg: bearing, elevDeg: elev, rangeM: range,
       deflectionMil: normDeg180(bearing - B) * DEG_PER_MIL,
       timeOfFlightS: sol.tofS, fallAngleDeg: sol.fallAngleDeg,
-      spreadMil: 55, sigmaRangeM: 0.10 * range, sigmaDeflectionM: 0.035 * range,
-      quality: 0.15, ammo, mvMps: mv, directorId: null, directorLabel: '局部控制',
+      spreadMil: (closeLocal ? 30 : 55) * (rfOk ? 0.8 : 1),
+      sigmaRangeM: (closeLocal ? 0.05 : 0.10) * range * (rfOk ? 0.75 : 1),
+      sigmaDeflectionM: (closeLocal ? 0.02 : 0.035) * range * (rfOk ? 0.75 : 1),
+      quality: (closeLocal ? 0.35 : 0.15) + (rfOk ? 0.1 : 0), ammo, mvMps: mv, directorId: null,
+      directorLabel: rfOk ? '局部控制(测距仪)' : '局部控制',
       trackId: track ? track.id : null, targetShipId: null,
       targetCourseDeg: track.courseDeg || 0, targetSpeedKn: track.speedKn || 0,
       corrections: { rangeM: 0, deflMil: 0, source: 'NONE' },
@@ -669,6 +682,9 @@ export function fireSalvo(ship, battery, solution, world, opts = {}) {
   ensureFriendlyFireHook(world);
   if (!battery._guns) ensureFC(ship, world);
   const fc = ship._fc;
+  const role = opts.role || null;
+  const targetShipId = opts.targetShipId !== undefined ? opts.targetShipId : null;
+  const trackId = opts.trackId !== undefined ? opts.trackId : null;
   const ammoWant = opts.ammo || (solution && solution.ammo) || 'AP';
   const ammo = pickAmmo(battery, ammoWant) || opts.ammo;
   if (!ammo) return { fired: 0, salvoId: opts.salvoId || null };
@@ -689,12 +705,18 @@ export function fireSalvo(ship, battery, solution, world, opts = {}) {
   const R = solution ? Math.max(400, solution.rangeM) : 12000;
   const mechMil = (shell && shell.mechDispersionMil) || 1.5;
   const mechF = Math.sqrt(clamp(mechMil / 1.5, 0.55, 2.8));
-  const degradeF = (solution && solution.degraded) ? 4.0 : 1.0;
+  const degradeF = (solution && solution.degraded)
+    ? (solution.source === 'LOCAL_RF' ? (solution.rangeM <= 6000 ? 1.6 : 2.8)
+      : solution.source === 'LOCAL' ? (solution.rangeM <= 6000 ? 2.0 : 4.0) : 4.0)
+    : 1.0;
   // 单炮 1σ：随距离近似线性 + 固定项（炮口跳动/装药差与距离无关部分）
   // 单炮 1σ ≈ (0.65%R + 36m)：对应 50% 区 ≈1.3~1.5%R@8km、~1.2%R@16km，
   // 落在史实 1.0~1.5%R 区间内（Lead 验收）
-  const sigmaRangeM = (R * 0.0070 + 38) * mechF * degradeF;
-  const sigmaDeflM = (R * 0.0038 + 16) * mechF * degradeF;
+  // 远距散布的超线性增长：线性外推到 16 km 会高估命中率（实测 8.3% vs 史实 3~5%）。
+  // R>10 km 后每 10 km 再放大约 40%，16 km 约 ×1.24 —— 与实测散布随距离的加速增长一致。
+  const farF = 1 + Math.max(0, R - 10000) / 25000;
+  const sigmaRangeM = (R * 0.0070 + 38) * mechF * degradeF * farF;
+  const sigmaDeflM = (R * 0.0038 + 16) * mechF * degradeF * farF;
   // 距离偏差 → 仰角偏差（射表局部斜率 dθ/dR）
   let degPerM = 0.0012;
   if (solution) {
@@ -721,7 +743,7 @@ export function fireSalvo(ship, battery, solution, world, opts = {}) {
     }
     battery.ammo[ammo] = Math.max(0, (battery.ammo[ammo] || 0) - 1);
     // 残余机械抖动（炮口跳动），主散布已由 drM/ddM 体现
-    const dispersion = solution && solution.degraded ? 1.2 : 0.35;
+    const dispersion = solution && solution.degraded ? (solution.source === 'LOCAL' ? 0.6 : 1.2) : 0.35;
     spawnProjectileLocal(world, {
       ship, battery, ammo, shell, mv,
       bearingDeg: solution ? solution.bearingDeg : battery.train,
@@ -747,6 +769,8 @@ export function fireSalvo(ship, battery, solution, world, opts = {}) {
       bearingDeg: +((solution ? solution.bearingDeg : battery.train)).toFixed(2),
       elevDeg: +((solution ? solution.elevDeg : battery.elev)).toFixed(2),
       mvMps: +mv.toFixed(0), wear: +(battery.wear || 0).toFixed(3),
+      role: role || (battery.role === 'main' ? 'main' : battery.role === 'aa' ? 'aa' : 'secondary'),
+      targetShipId, trackId,
       salvoId, rangeM: solution ? Math.round(solution.rangeM) : 0,
     });
     fired++;
@@ -786,39 +810,54 @@ function spawnProjectileLocal(world, spec) {
 // ---------------------------------------------------------------------------
 // 开火决策
 // ---------------------------------------------------------------------------
-function tryFire(ship, world, dt, primary, targetShip, track) {
+function tryFire(ship, world, dt, primary, targetShip, track, opts = {}) {
   const fc = ship._fc;
   const now = world.t;
-  if (!ship.commanded || !ship.commanded.firing) return;
-  if (ship.commanded.salvoes !== undefined && ship.commanded.salvoes <= 0) { ship.commanded.firing = false; return; }
+  // ── 主炮 / 副炮两条火力通道 ──
+  // cmd 是该通道的命令视图（主炮 = ship.commanded；副炮 = 由 AI/玩家下发的 sec* 字段），
+  // state 是该通道独立的节流/齐射状态（副炮用 fc.sec，不会阻塞主炮的齐射节奏）。
+  const cmd = opts.cmd || (ship.commanded || {});
+  const state = opts.fcState || fc;
+  const role = opts.role || (cmd.fireBattery === 'secondary' ? 'secondary' : 'main');
+  if (!cmd || !cmd.firing) return;
+  if (cmd.salvoes !== undefined && cmd.salvoes <= 0) { cmd.firing = false; return; }
   // 已确认为友舰的航迹不得开火（识不清时照常开火，见 updateFireControl 的注释）
-  if (track && track.hostile === false && !(ship.commanded.overrideFriendly === true)) return;
-  if (now - fc.lastSalvoT < 1.5) return;
-  const role = ship.commanded.fireBattery === 'secondary' ? 'secondary' : 'main';
-  const allBats = (role === 'main' ? (ship.mainBatteries || []) : (ship.secondaryBatteries || []))
+  if (track && track.hostile === false && !(cmd.overrideFriendly === true)) return;
+  if (now - (state.lastSalvoT || -1e9) < 1.5) return;
+  // 副炮通道只取 role='secondary'（5"/6" 等对海副炮）；高射炮（role='aa'）对海无效，
+  // 不应被当成副炮打水面目标（否则会白白消耗防空弹药、事件里还出现"高射炮齐射"）。
+  const allBats = (role === 'main'
+    ? (ship.mainBatteries || [])
+    : role === 'close'
+      ? (ship.batteries || []).filter((b) => b.role === 'secondary' || b.role === 'aa')
+      : (ship.secondaryBatteries || []).filter((b) => b.role === 'secondary'))
     .filter((b) => !b.destroyed && (b.health === undefined || b.health > 0.15));
   if (!allBats.length) return;
-  const ammoReq = ship.commanded.fireAmmo || 'AP';
+  const ammoReq = cmd.fireAmmo || ((role === 'secondary' || role === 'close') ? 'HE' : 'AP');
+  // 按炮位选弹（近距离全炮通道用：按目标类型与预计穿深在 AP/HE 之间自动选）
+  const ammoForBattery = typeof opts.ammoForBattery === 'function' ? opts.ammoForBattery : null;
+  const wantAmmoOf = (b) => (ammoForBattery ? ammoForBattery(b) : ammoReq);
   // 可作战/有弹的炮塔
-  const opBats = allBats.filter((b) => pickAmmo(b, ammoReq));
+  const opBats = allBats.filter((b) => pickAmmo(b, wantAmmoOf(b)));
   if (!opBats.length) return;
   const ready = [];
   for (const b of opBats) {
     const loaded = (b._guns || []).filter((g) => g.reloadT <= 0).length;
     if (loaded < 1) continue;
-    const sol = (b.role === 'main' && primary && primary._fc && primary._fc.solution)
-      ? primary._fc.solution
-      : (b._localSol || (primary && primary._fc && primary._fc.solution));
+    // 副炮用自己的局部解算（buildLocalSolution 按该炮塔口径求弹道）；主炮用主指挥仪解算
+    const sol = role === 'main'
+      ? ((primary && primary._fc && primary._fc.solution) ? primary._fc.solution : (b._localSol || null))
+      : (b._localSol || null);
     if (!sol || sol.valid === false || sol.outOfRange) continue;
     if (!servoAligned(ship, b, sol, sol.degraded ? 1.6 : 0.4)) continue;
     ready.push({ b, sol, loaded });
   }
-  if (!ready.length) { fc.pendingSince = null; return; }
+  if (!ready.length) { state.pendingSince = null; return; }
   // ---- 齐射序列化（真实校射流程：射击 → 着弹观测 → 修正 → 再射击）----
   // 前一次齐射未完成观测前不打下一发，避免"边打边修"造成的自激振荡
   // （多批弹同时在空中时，修正会追逐过期的落点误差而发散）。
-  if (fc.lastSalvoId && world.salvoes) {
-    const prev = world.salvoes.get(fc.lastSalvoId);
+  if (state.lastSalvoId && world.salvoes) {
+    const prev = world.salvoes.get(state.lastSalvoId);
     if (prev && !prev.observed) {
       const tof = prev.tofS || 25;
       if (now - prev.tFire < tof + 30) return;
@@ -828,12 +867,12 @@ function tryFire(ship, world, dt, primary, targetShip, track) {
   // 不能就位（战损/弹药耗尽/卡膛），最多等 18s 后以其余炮塔齐射。
   const allReady = ready.length === opBats.length;
   if (!allReady) {
-    if (fc.pendingSince === undefined || fc.pendingSince === null) fc.pendingSince = now;
-    if (now - fc.pendingSince < 18) return;
+    if (state.pendingSince === undefined || state.pendingSince === null) state.pendingSince = now;
+    if (now - state.pendingSince < 18) return;
   }
-  fc.pendingSince = null;
-  const salvoNo = ++fc.salvos;
-  const salvoId = ship.id + '#S' + salvoNo;
+  state.pendingSince = null;
+  const salvoNo = ++state.salvos;
+  const salvoId = ship.id + (role === 'secondary' ? '#T' : role === 'close' ? '#C' : '#S') + salvoNo;
   if (!world.salvoes) world.salvoes = new Map();
   const rec = {
     id: salvoId, t: now, tFire: now, shooterId: ship.id, shipId: ship.id, side: ship.side,
@@ -874,24 +913,27 @@ function tryFire(ship, world, dt, primary, targetShip, track) {
   let firedTotal = 0;
   const gunsPerTurret = [];
   for (const { b, sol } of ready) {
-    const ammo = pickAmmo(b, ammoReq);
+    const ammo = pickAmmo(b, wantAmmoOf(b));
     if (!ammo) continue;
     const res = fireSalvo(ship, b, sol, world, {
-      ammo, salvoId, pattern: ship.commanded.pattern || 'SALVO',
+      ammo, salvoId, pattern: cmd.pattern || 'SALVO',
       bearingOffsetDeg: salvoBearErrDeg, elevOffsetDeg: salvoElevErrDeg,
-      emitSalvoEvent: false,
+      emitSalvoEvent: false, role,
+      targetShipId: targetShip ? targetShip.id : null, trackId: track ? track.id : null,
     });
     firedTotal += res.fired;
     gunsPerTurret.push(res.fired);
   }
-  if (!firedTotal) { world.salvoes.delete(salvoId); fc.salvos--; return; }
-  fc.lastSalvoT = now;
-  fc.lastSalvoId = salvoId;
+  if (!firedTotal) { world.salvoes.delete(salvoId); state.salvos--; return; }
+  state.lastSalvoT = now;
+  state.lastSalvoId = salvoId;
   // 全炮塔齐射汇总事件（契约 gun.salvo.away 以"齐射"为单位）
   const solRef = ready[0].sol;
   world.events.emit('gun.salvo.away', {
     t: now, ship: ship.id, name: ship.name, side: ship.side,
-    battery: 'MAIN', batteryId: 'all', ammo: pickAmmo(ready[0].b, ammoReq),
+    battery: role === 'secondary' ? 'SECONDARY' : role === 'close' ? 'ALL_GUNS' : 'MAIN',
+    batteryId: role === 'secondary' ? 'secondaryAll' : role === 'close' ? 'closeAll' : 'all',
+    ammo: ammoForBattery ? 'MIXED' : pickAmmo(ready[0].b, ammoReq),
     gunsFired: firedTotal, turrets: ready.length, turretsOperational: opBats.length,
     gunsPerTurret,
     rangeM: Math.round(solRef.rangeM),
@@ -901,16 +943,16 @@ function tryFire(ship, world, dt, primary, targetShip, track) {
     spreadMil: +solRef.spreadMil.toFixed(2),
     targetTrackId: solRef.trackId || null,
     targetShipId: targetShip ? targetShip.id : null,
-    salvoId, degraded: !!solRef.degraded, salvoNo: fc.salvos,
+    salvoId, degraded: !!solRef.degraded, salvoNo: state.salvos, role,
   });
-  if (ship.commanded.salvoes !== undefined && isFinite(ship.commanded.salvoes)) {
-    ship.commanded.salvoes -= 1;
-    if (ship.commanded.salvoes <= 0) {
-      ship.commanded.salvoes = 0;
-      ship.commanded.firing = false;
+  if (cmd.salvoes !== undefined && isFinite(cmd.salvoes)) {
+    cmd.salvoes -= 1;
+    if (cmd.salvoes <= 0) {
+      cmd.salvoes = 0;
+      cmd.firing = false;
       world.events.emit('fc.update', {
         t: now, ship: ship.id, side: ship.side, kind: 'SALVOES_EXHAUSTED',
-        salvoes: fc.salvos,
+        salvoes: state.salvos,
       });
     }
   }
@@ -928,6 +970,26 @@ export function updateFireControl(ship, world, dt) {
   const trackId = cmd.targetTrackId || null;
   let track = trackId ? world.tracks.byId(trackId) : null;
   if (track && (track.side && track.side !== ship.side)) track = null;
+  // —— 目标航迹已消亡（失跟超时被删 / 被合并掉）→ 必须清掉火力状态 ——
+  // 否则形成死锁：gunnery 拿不到航迹而不开火，但 commanded.firing 仍为 true；
+  // AI 侧看到 firing 为真就不再重发 FIRE，于是一直指着一个不存在的航迹 id，
+  // 后半场"全队静默"（实测 sandbox 种子 604：轴心 t=166s 后再无一发）。
+  // 清掉 targetTrackId 后，AI 下一轮决策会重新指派新航迹并重发 FIRE。
+  if (!track) {
+    if (cmd.firing || cmd.targetTrackId) {
+      ship.commanded.firing = false;
+      ship.commanded.targetTrackId = null;
+      if (!ship._targetLostNotified) {
+        ship._targetLostNotified = true;
+        world.events.emit('fc.update', {
+          t: now, ship: ship.id, side: ship.side, kind: 'TARGET_LOST',
+          trackId, text: '目标航迹已消亡，停火并等待重新指派',
+        });
+      }
+    }
+  } else if (ship._targetLostNotified) {
+    ship._targetLostNotified = false;
+  }
   // —— 敌我识别闸门 ——
   // 识别不清楚（hostile=true、foeConfidence 低）时照常开火：那正是 1942 年夜间误伤的来源；
   // 但一旦目视看清舰型/旗号、确认是友舰（hostile=false），必须停火。
@@ -970,6 +1032,7 @@ export function updateFireControl(ship, world, dt) {
     }
     updateLocalControl(ship, world, dt, trackFresh ? track : null);
     tryFire(ship, world, dt, null, targetShip, track);
+    if (targetShip && trackFresh && dist2d(ship.pos, targetShip.pos) <= CLOSE_ALL_GUNS_M) fireAllGunsClose(ship, world, dt, null, targetShip, track);
     return;
   }
   fc.localControl = false;
@@ -982,7 +1045,13 @@ export function updateFireControl(ship, world, dt) {
       d.trackingTrackId = null; st.solution = null;
       continue;
     }
-    if (st.trackId !== track.id) resetDirector(d, track.id);
+    if (st.trackId !== track.id) {
+      // 同一艘实舰的航迹 id 翻新（失跟-重捕/合并改号）时不要重置解算——否则每次换号
+      // 都要从 quality 0.3 重新收敛，而 degraded 解算的散布是正常值的 4 倍
+      // （实测苏里高/第一次瓜岛：AI 每 12~30 s 换一次航迹号，命中率被摊到 0.5%~1%）。
+      const sameRealTarget = !!(targetShip && st.lastTrueId && st.lastTrueId === targetShip.id);
+      if (!sameRealTarget) resetDirector(d, track.id);
+    }
     d.trackingTrackId = track.id;
     // 观测节拍（测距仪连续跟踪，但火控记录/更新受人员节拍限制）
     if (now >= st.nextObsT) {
@@ -995,6 +1064,7 @@ export function updateFireControl(ship, world, dt) {
       const sol = computeSolution(ship, d, track, world);
       if (sol) {
         sol.targetShipId = targetShip ? targetShip.id : null;
+        st.lastTrueId = targetShip ? targetShip.id : st.lastTrueId;
         st.solution = sol;
         d.solution = sol;          // 契约/UI 读取点：directors[i].solution
         st.lastSolveT = now;
@@ -1032,12 +1102,30 @@ export function updateFireControl(ship, world, dt) {
       }
     }
   }
-  // 副炮（无火控指挥仪通道时转局部控制）
+  // 副炮：优先按"副炮自己的目标"建立局部解算（独立于主炮目标），
+  // 没有副炮目标时沿用旧逻辑（无多通道指挥仪才转局部控制）。
+  fc.sec = fc.sec || { lastSalvoT: -1e9, lastSalvoId: null, pendingSince: null, salvos: 0 };
+  const secTrack = (cmd.secTargetTrackId ? world.tracks.byId(cmd.secTargetTrackId) : null) || null;
+  const secTrackFresh = !!(secTrack && (secTrack.ageS === undefined || secTrack.ageS < 60));
   for (const b of ship.secondaryBatteries || []) {
     if (b.destroyed || (b.health !== undefined && b.health <= 0.05)) continue;
-    if (!primary || primary.channels <= 1) {
+    if (secTrackFresh) {
+      const ls = buildLocalSolution(ship, b, world, secTrack, cmd.secAmmo || 'HE');
+      if (ls) { b.targetTrain = ls.bearingDeg; b.targetElev = ls.elevDeg; }
+    } else if (!primary || primary.channels <= 1) {
       const ls = buildLocalSolution(ship, b, world, trackFresh ? track : null);
       if (ls) { b.targetTrain = ls.bearingDeg; b.targetElev = ls.elevDeg; }
+    }
+  }
+  // ── 近距离混战：目标 ≤ CLOSE_ALL_GUNS_M 时，副炮与高射炮压平对海，全炮开火 ──
+  // 远距离仍按主/副炮通道分配，避免高射炮在 10 km 外浪费弹药。
+  const closeAllGuns = !!(targetShip && trackFresh && dist2d(ship.pos, targetShip.pos) <= CLOSE_ALL_GUNS_M);
+  if (closeAllGuns) {
+    for (const b of ship.batteries) {
+      if (b.destroyed || (b.health !== undefined && b.health <= 0.05)) continue;
+      if (b.role === 'main') continue;
+      const ls = buildLocalSolution(ship, b, world, track, 'HE');
+      if (ls) { b._localSol = ls; b.targetTrain = ls.bearingDeg; b.targetElev = ls.elevDeg; }
     }
   }
   // 炮塔随动 + 装填
@@ -1047,6 +1135,52 @@ export function updateFireControl(ship, world, dt) {
     updateReload(ship, b, dt);
   }
   tryFire(ship, world, dt, primary, targetShip, track);
+  // ── 副炮通道 ──
+  // 独立目标/弹药/节流；解算由上面 buildLocalSolution 按副炮口径给出。
+  if (cmd.secFiring && !closeAllGuns) {
+    if (secTrackFresh) {
+      const secTarget = resolveTargetShip(world, ship, secTrack);
+      const secCmd = { firing: true, salvoes: cmd.secSalvoes, fireAmmo: cmd.secAmmo || 'HE', pattern: 'SALVO' };
+      tryFire(ship, world, dt, primary, secTarget, secTrack, { role: 'secondary', cmd: secCmd, fcState: fc.sec });
+    } else if (!secTrack) {
+      cmd.secFiring = false; cmd.secTargetTrackId = null;
+    }
+  }
+  // 近距离全炮通道（副炮 + 高射炮压平）；与副炮共用节流状态，不会重复齐射。
+  if (closeAllGuns) fireAllGunsClose(ship, world, dt, primary, targetShip, track);
+}
+
+// 近距离混战：所有非主炮（副炮 + 高射炮）一起打水面目标
+function fireAllGunsClose(ship, world, dt, primary, targetShip, track) {
+  const fc = ship._fc;
+  if (!fc) return;
+  fc.sec = fc.sec || { lastSalvoT: -1e9, lastSalvoId: null, pendingSince: null, salvos: 0 };
+  const cmd = ship.commanded || {};
+  const closeCmd = { firing: true, pattern: 'SALVO', overrideFriendly: cmd.overrideFriendly === true };
+  tryFire(ship, world, dt, primary, targetShip, track, {
+    role: 'close', cmd: closeCmd, fcState: fc.sec,
+    ammoForBattery: (b) => closeAmmoFor(ship, b, targetShip, track),
+  });
+}
+
+// 近距离全炮通道的自动选弹：目标类型 + 本炮在交战距离的预计穿深。
+//   · 驱逐舰 / 轻巡 / 航母等软目标 → HE（毁伤上层建筑、点火、杀伤暴露人员）
+//   · 重巡 / 战列舰 / 战巡：该炮在交战距离的 AP 预计穿深 ≥ 其舷侧装甲 90% → AP；否则 HE
+//     （5 吋打不穿重巡装甲带时，AP 只会多几个洞，HE 的爆破与纵火收益更高）
+function closeAmmoFor(ship, battery, targetShip, track) {
+  if (!targetShip) return 'HE';
+  const t = targetShip.type;
+  if (t === 'DD' || t === 'CL' || t === 'CV') return 'HE';
+  if (!pickAmmo(battery, 'AP')) return 'HE';
+  const armor = (targetShip.data && targetShip.data.armor) || {};
+  const belt = Math.max(20, armor.belt_mm || 0);
+  const rangeM = track ? Math.max(300, dist2d(ship.pos, track.pos)) : 6000;
+  const shell = makeShell(ship, battery, 'AP');
+  const mv = effectiveMv(battery, shell, (ship._fc && ship._fc.powderTempC) || 21);
+  const tab = solutionForRange(shell, rangeM, mv);
+  const vStrike = (tab && tab.vStrikeMps) || mv;
+  const det = penetrationDetail(belt, 15, shell, vStrike);   // 近距交火落角小，取 15° 代表
+  return det.effectivePenMM >= belt * 0.9 ? 'AP' : 'HE';
 }
 
 // 无指挥仪时的局部控制更新
