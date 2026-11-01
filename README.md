@@ -78,6 +78,8 @@ node test/t4.gunnery.test.mjs
 | 离线模拟 LLM | `LLM_MOCK=1` | 无网络/无密钥时返回确定性响应，便于演示与测试 |
 | 连接令牌 | `SERVER_TOKEN` / `config.json {token}` | 非空时 WS 需 `?token=`，健康检查不泄露令牌 |
 
+全量测试：`npm test`（等价于 `node test/run-all.mjs`），跑完内核/单元/集成/剧本/无头/UI 启动共 29 项验收，详见 §8。
+
 ---
 
 ## 3. 目录与职责
