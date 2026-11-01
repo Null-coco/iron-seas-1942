@@ -1,7 +1,7 @@
 #!/bin/sh
 # 铁海 1942 启动脚本。默认 http://127.0.0.1:8787
 DIR=$(cd "$(dirname "$0")" && pwd)
-NODE="${NODE_BIN:-/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node}"
+NODE="${NODE_BIN:-node}"
 if [ ! -x "$NODE" ]; then NODE=$(command -v node); fi
 if [ -z "$NODE" ]; then echo "找不到 node，请设置 NODE_BIN 环境变量"; exit 1; fi
 if [ ! -f "$DIR/server/serve.mjs" ]; then

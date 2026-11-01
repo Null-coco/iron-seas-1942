@@ -1,6 +1,9 @@
 import fs from 'node:fs';
-import { Land } from '/Users/zl/coco/naval/src/sim/land.js';
-const landData = JSON.parse(fs.readFileSync('/Users/zl/coco/naval/data/land.json','utf8'));
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Land } from '../src/sim/land.js';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const landData = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/land.json'), 'utf8'));
 const area=(r)=>{let a=0;for(let i=0,j=r.length-1;i<r.length;j=i++)a+=(r[j][0]*r[i][1]-r[i][0]*r[j][1]);return Math.abs(a/2);};
 const buckets={}; const failAreas=[];
 for (const id of Object.keys(landData.scenarios)) {

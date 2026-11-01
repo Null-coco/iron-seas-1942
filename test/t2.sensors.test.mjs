@@ -1,5 +1,5 @@
 // test/t2.sensors.test.mjs — 【T2】传感器/光学/航迹 数值与行为测试
-// 运行：/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node test/t2.sensors.test.mjs
+// 运行：node test/t2.sensors.test.mjs
 // 覆盖：雷达地平线（10 m vs 20 m 桅高）、雷达对 DD/BB 的发现距离、重合式测距仪 15000 m 误差、
 //       扫描周期与漏检、海杂波/箔条/噪声干扰、目视发现与烟幕/探照灯/火灾、声呐主动/被动、
 //       多源融合/型号识别/共享延迟/失跟重捕。

@@ -1,6 +1,6 @@
 // ============================================================================
 // test/t4.gunnery.test.mjs —— T4 火控 / 弹道 / 校射 数值与系统测试
-// 运行： /Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node test/t4.gunnery.test.mjs
+// 运行： node test/t4.gunnery.test.mjs
 //
 // 覆盖：
 //  A. 弹道数值样例（16"/50 @20km 飞行时间/落角/落速/仰角；穿深；射程表自洽）

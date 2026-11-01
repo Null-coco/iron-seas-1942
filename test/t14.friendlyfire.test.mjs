@@ -1,5 +1,5 @@
 // test/t14.friendlyfire.test.mjs —— 【A2】敌我识别不确定 + 友军误伤（萨沃岛式）
-// 运行：/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node test/t14.friendlyfire.test.mjs
+// 运行：node test/t14.friendlyfire.test.mjs
 //
 // 1942 年没有 IFF：雷达只能测距测向，只有目视可能分辨敌我。夜间混战里
 // "把友舰当敌舰打"必须可能发生（萨沃岛的精髓），但白天/近距识别清楚时不得误伤。
@@ -26,7 +26,7 @@ import { dist2d } from '../src/core/util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const NODE = '/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node';
+const NODE = process.execPath;
 
 let pass = 0, fail = 0;
 const failures = [];

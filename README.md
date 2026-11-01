@@ -61,9 +61,9 @@ node tools/replay-analyzer.mjs replay.json
 node tools/replay-analyzer.mjs replay.json --format=html --out report.html
 node tools/replay-analyzer.mjs replay.json --check
 
-# 其它测试
-node test/lead.smoke.mjs
-node test/lead.integration.mjs
+# 其它测试（全量门禁：node test/run-all.mjs；历史诊断探针在 probes/）
+node probes/lead.smoke.mjs
+node probes/lead.integration.mjs
 node test/t2.sensors.test.mjs
 node test/t4.gunnery.test.mjs
 ```
@@ -105,7 +105,8 @@ naval/
   tools/replay-analyzer.html  单文件网页版（拖入回放即可看战报；由 build 脚本生成）
   tools/build-replay-analyzer-html.mjs  把 core/svg/render 打包成单文件网页
   tools/analyzer/             分析核心（core.mjs 口径与发现、svg.mjs 图表、render.mjs 渲染）
-  test/                       各模块测试 + *.scenarios.test.mjs 剧本校验
+  test/                       各模块测试 + *.scenarios.test.mjs 剧本校验 + run-all.mjs 全量门禁
+  probes/                     A–E 波次期间的一次性诊断/复现脚本（82 个，已从 test/ 归档；索引见 probes/README.md）
 ```
 
 模块所有权与接口冻结约定见 ARCHITECTURE §1/§4。仿真主循环固定顺序见 `src/sim/world.js` 的 `step(dt)`。
@@ -272,11 +273,12 @@ naval/
 
 | 测试 | 覆盖 | 运行 |
 | --- | --- | --- |
-| `test/lead.smoke.mjs` | 冻结内核冒烟（不依赖 data/） | `node test/lead.smoke.mjs` |
-| `test/lead.integration.mjs` | 全链路集成（含陆地遮蔽 / 误击 / 条令） | `node test/lead.integration.mjs` |
+| `test/run-all.mjs` | **全量验收**：内核/单元/集成/剧本/无头/UI 启动，共 29 项 | `npm test` |
+| `probes/lead.smoke.mjs` | 冻结内核冒烟（不依赖 data/） | `node probes/lead.smoke.mjs` |
+| `probes/lead.integration.mjs` | 全链路集成（含陆地遮蔽 / 误击 / 条令） | `node probes/lead.integration.mjs` |
 | `test/t2.sensors.test.mjs` | 传感器 / 光学 / 航迹 / 识别证据 | `node test/t2.sensors.test.mjs` |
 | `test/t3.damage.test.mjs` | 损伤与损管 | `node test/t3.damage.test.mjs` |
-| `test/t4.gunnery.test.mjs` | 火控 / 弹道（**2 项标定断言长期失败，见 §8.2**） | `node test/t4.gunnery.test.mjs` |
+| `test/t4.gunnery.test.mjs` | 火控 / 弹道 / 校射（标定带见 §8.2） | `node test/t4.gunnery.test.mjs` |
 | `test/t6.tactics.test.mjs` | 战术 AI 与鱼雷 | `node test/t6.tactics.test.mjs` |
 | `test/t8.scenarios.test.mjs` | **12 个剧本静态校验** | `node test/t8.scenarios.test.mjs` |
 | `test/t9.stats.test.mjs` | 命中统计口径（被命中不双计、近失单列） | `node test/t9.stats.test.mjs` |
@@ -288,22 +290,20 @@ naval/
 | `test/t15.ai_doctrine.test.mjs` | AI 条令：协同雷击 / 受损脱离 | `node test/t15.ai_doctrine.test.mjs` |
 | `test/t16.a11y.test.mjs` | 可访问性 / 高对比主题 / 触控断点 | `node test/t16.a11y.test.mjs` |
 | `test/t17.triggers.test.mjs` | 剧本触发器（时间 / 条件 / 目标激活） | `node test/t17.triggers.test.mjs` |
+| `test/t21.sandbox604.test.mjs` | 沙盒 3v3 @seed 604 回归：无友军鱼雷 / 后半场仍开火 / 航迹不爆炸 | `node test/t21.sandbox604.test.mjs` |
 | `test/t23.replay_analyzer.test.mjs` | 回放分析器：统计口径 / 发现 / 检查规则 / 三种渲染 | `node test/t23.replay_analyzer.test.mjs` |
 | `test/golden.seed.test.mjs` | 黄金种子回归：固定 seed 的胜方/沉没/命中不漂移 | `npm run test:golden` |
 | `tools/uicheck.mjs` | **UI 端到端**：真实鼠标/键盘驱动 headless Chrome，含慢点击/打字/模态框回归 | `node tools/uicheck.mjs --suite` |
 
+探测脚本（`probes/`）：A–E 波次开发与标定期间写的一次性诊断/复现脚本（共 82 个），已从 `test/` 归档；绝大多数不参与门禁，其中 4 个仍被 `test/run-all.mjs` 当门禁步骤（smoke / gunnery_probe / integration×2 / uiboot），改动 `src/` 后必须保持通过。索引见 `probes/README.md`。
+
 `t8.scenarios.test.mjs` 校验内容：结构/字段完整性、id 唯一、经纬度合理、`class` 可被 `ShipDatabase.resolve` 解析、任意两舰间距 > 250 m、双方初始距离 > 2 km、objectives 的 `condition.type` 合法且 `shipIds` 存在且属于正确阵营、EXIT 区域开局不含本方舰船、`env` 五要素范围、`start.env` 与 `env` 一致、**开局当地平太阳时与史实对照**（调用真实 `Environment`，逐剧本打印「UTC／当地／史实值／Δmin／日高／光照／夜-昼」表并按 ±30 min 校验）、夜战剧本开局必须为夜间（`lightLevel < 0.15` 且日高 < 0）、以及用真实 `World` 装配沙盒剧本推进 60 s 的集成冒烟。数据文件缺失时输出 `PENDING DATA` 并以 0 退出（等待数据），不崩溃；数据齐全后仍有未解析 class 则判失败。
 
-最近一次结果：**PASS 1967 / FAIL 0 / WARN 0**，11 剧本、144 条舰位、舰级 0 个未解析（此后新增 `denmark_strait_1941_duel`，数据为 12 剧本 / 148 舰位，未重跑全量回归）。
+最近一次结果（2026-11-01）：**PASS 2061 / FAIL 0 / WARN 0**，12 剧本 / 148 舰位、舰级 0 个未解析；全量验收 `npm test` **29/29 项通过**。
 
-### 8.2 已知失败（长期存在，非 A–E 引入）
+### 8.2 标定带与已知偏差
 
-`test/t4.gunnery.test.mjs` 有 2 项标定断言一直失败，且与磨损标定无关（把 `WEAR_ACCUM_SCALE` 临时改回 1 复跑，数值不变）：
-
-1. **16 km 静止目标命中率均值 8.3%**，断言要求 2–8%（史实 15–18 km 约 3–5%）——略高于自设上限，属火控/散布标定问题；
-2. **「航迹位置错误使命中率下降」14.7% → 18.4%**——该探针用单次样本比较命中率，符号会翻转，疑似统计量不足而非物理错误。
-
-A1（陆地遮蔽）作者已用基线文件复现同样两项，确认不是 Wave 1 引入。建议下一轮：把第 2 条改成多种子均值比较，第 1 条重新标定散布/解算误差后收紧到史实带。
+`test/t4.gunnery.test.mjs` 的标定断言现已全部通过（60/0，2026-11-01 复核）。此前长期存在的两项（16 km 静止目标命中率 8.3% 超出 2–8% 带；「航迹位置错误使命中率下降」符号翻转）已由 2026-10-31 的校射隔离与射界修复消除，保留此条作为回归提醒：若再次出现，优先检查校射偏置是否被副炮落点污染，以及单次样本比较的统计量是否足够。
 
 ---
 
@@ -423,7 +423,7 @@ HTML 输出内联三张 SVG（航迹 / 交战距离 / 中弹条带），单文�
 
 | 入口 | 内容 | 命令 |
 | --- | --- | --- |
-| 全量验收 | 单元/集成/剧本/无头/UI 启动，共 20+ 项 | npm test（= node test/run-all.mjs） |
+| 全量验收 | 单元/集成/剧本/无头/UI 启动，共 29 项 | npm test（= node test/run-all.mjs） |
 | 黄金种子 | 固定 seed 的胜方/沉没/命中/在航不漂移 | npm run test:golden |
 | 基线重生成 | 物理改动确认后刷新基线 | npm run golden:update |
 | UI 端到端 | 无头 Chrome 真实点击/键盘/截图 | npm run uicheck |

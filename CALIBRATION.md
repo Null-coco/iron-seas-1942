@@ -3,16 +3,16 @@
 > 本作主张"真实"，所以每项都可测。下表全部为**本机实测值**（2026-10-17），可用文中命令复现。
 > 状态：✅ 达标 · ⚠️ 已知偏差（可接受并已说明）· 📌 设计选择
 >
-> 一键复现：node test/run-all.mjs → **13/13 项通过**
+> 一键复现：node test/run-all.mjs → **29/29 项通过**（2026-11-01）
 
 ~~~sh
-NODE=/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node
-cd /Users/zl/coco/naval
+NODE=node
+cd <repo-root>
 $NODE test/run-all.mjs                                  # 全量验收
 $NODE server/serve.mjs 8787                             # 打开 http://127.0.0.1:8787
-$NODE test/lead.gunnery_probe.mjs 8000                  # 受控火控探针
-$NODE test/lead.integration.mjs denmark_strait_1941 1500
-$NODE test/lead.uiboot.mjs                              # DOM 垫片下真跑 UI
+$NODE probes/lead.gunnery_probe.mjs 8000                # 受控火控探针
+$NODE probes/lead.integration.mjs denmark_strait_1941 1500
+$NODE probes/lead.uiboot.mjs                            # DOM 垫片下真跑 UI
 $NODE server/headless.mjs                               # 无头整场战斗 + 战报
 ~~~
 
@@ -101,7 +101,7 @@ $NODE server/headless.mjs                               # 无头整场战斗 + �
 | 定步长吞吐 | 18000 步 / 4.5-9.2s ≈ **196-330x 实时** |
 | 17 舰夜战剧本 | 9000 步 / 15s ≈ 58x 实时（传感器与跟踪成本随目标数上升） |
 | UI 主循环 | 600 帧 @64x → 推进 1007-2436s 仿真，无运行时错误 |
-| 测试 | **13/13 验收项通过**（t1 12 · t2 全绿 · t3 57 · t4 60 · t5 19 · t6 13 · t8 1967 断言） |
+| 测试 | **29/29 验收项通过**（逐项数字见 `npm test` 输出；t3 58 · t4 60 · t6 13 · t8 2061 断言） |
 | 确定性 | 同 seed 两次运行 digest 一致（f0dbb1ae / d59fca46） |
 | 依赖 | **零第三方依赖**（浏览器原生 ESM + Node 内置模块） |
 

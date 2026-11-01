@@ -1,5 +1,5 @@
 // test/t6.tactics.test.mjs —— T6 鱼雷与本地战术 AI 验收测试
-// 运行：/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node test/t6.tactics.test.mjs
+// 运行：node test/t6.tactics.test.mjs
 //
 // 测试策略：
 //  1) 鱼雷物理用「最小宿主」(只提供 env/rng/events/ships/torpedoes) 做端到端蒙特卡洛，隔离其他

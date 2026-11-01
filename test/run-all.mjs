@@ -10,7 +10,7 @@ const R = path.join(__dirname, '..');
 const NODE = process.execPath;
 
 const steps = [
-  ['内核冒烟（定步长/航速/位移/事件）', ['test/lead.smoke.mjs']],
+  ['内核冒烟（定步长/航速/位移/事件）', ['probes/lead.smoke.mjs']],
   ['T1 环境与舰体运动', ['test/t1.env.test.mjs']],
   ['T2 传感器/光学/航迹', ['test/t2.sensors.test.mjs']],
   ['T3 损伤与损管', ['test/t3.damage.test.mjs']],
@@ -31,12 +31,13 @@ const steps = [
   ['T18 随机种子（可复现/可更改）', ['test/t18.seed.test.mjs'], 120000],
   ['T19 随机种子 UI（菜单/开局）', ['test/t19.seed_ui.test.mjs'], 180000],
   ['T20 友军鱼雷安全走廊', ['test/t20.friendly_torp.test.mjs'], 120000],
+  ['T21 沙盒 3v3 @seed 604 回归', ['test/t21.sandbox604.test.mjs'], 120000],
   ['T24 火炮弹药与副炮', ['test/t24.secondary_ammo.test.mjs'], 120000],
   ['T23 回放分析器（统计/发现/检查/渲染）', ['test/t23.replay_analyzer.test.mjs'], 120000],
-  ['火控探针 8km 静止（史实 15-25%）', ['test/lead.gunnery_probe.mjs', '8000'], 25000],
-  ['集成：丹麦海峡 1941（日间远距）', ['test/lead.integration.mjs', 'denmark_strait_1941', '900'], 120000],
-  ['集成：萨沃岛 1942（夜间近距）', ['test/lead.integration.mjs', 'savo_island_1942', '600'], 120000],
-  ['UI 启动（DOM 垫片下 600 帧）', ['test/lead.uiboot.mjs'], 120000],
+  ['火控探针 8km 静止（史实 15-25%）', ['probes/lead.gunnery_probe.mjs', '8000'], 25000],
+  ['集成：丹麦海峡 1941（日间远距）', ['probes/lead.integration.mjs', 'denmark_strait_1941', '900'], 120000],
+  ['集成：萨沃岛 1942（夜间近距）', ['probes/lead.integration.mjs', 'savo_island_1942', '600'], 120000],
+  ['UI 启动（DOM 垫片下 600 帧）', ['probes/lead.uiboot.mjs'], 120000],
   ['无头整场战斗', ['server/headless.mjs'], 180000],
 ];
 const rows = [];

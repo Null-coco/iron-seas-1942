@@ -1,5 +1,5 @@
 // T1（环境 + 舰体运动）测试：Node 原生 test runner，零依赖。
-// 运行：/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node --test test/t1.env.test.mjs
+// 运行：node --test test/t1.env.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../src/sim/world.js';

@@ -1,5 +1,5 @@
 // test/t13.terrain.test.mjs — 【A1】陆地遮蔽：视线（vision）与弹道（ballistics）
-// 运行：/Users/zl/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node test/t13.terrain.test.mjs
+// 运行：node test/t13.terrain.test.mjs
 //
 // 覆盖：
 //   1) 视线：观察者与目标之间隔一座岛 → 不发现、无 sensor.detect；

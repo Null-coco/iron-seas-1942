@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const R = path.join(__dirname, '..');
 
-// ── 最小 DOM 垫片（与 test/lead.uiboot.mjs 同一套思路）──
+// ── 最小 DOM 垫片（与 probes/lead.uiboot.mjs 同一套思路）──
 const ctxProxy = new Proxy({ canvas: { width: 1280, height: 720 } }, {
   get(t, k) {
     if (k === 'canvas') return t.canvas;

@@ -641,10 +641,10 @@ async def main():
 
 ~~~sh
 # 上下文累积 + 两轮真实 LLM 决策（需要服务器在跑）
-node test/lead.llm_context.mjs
+node probes/lead.llm_context.mjs
 # 外部智能体收到的 state/context 体积与结构
-node test/lead.agent_state.mjs
+node probes/lead.agent_state.mjs
 # LLM 指挥官端到端（生成简报→调用→解析→命令回灌仿真）
-node test/lead.llm_e2e.mjs
+node probes/lead.llm_e2e.mjs
 ~~~
 
