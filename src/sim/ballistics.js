@@ -245,8 +245,11 @@ export function integrateTrajectory(shell, elevDeg, mv, opts = {}) {
 const _tables = new Map();
 const TABLE_MAX = 32;
 function tableKey(shell, mv) {
+  // 初速不能按整数取整：药温/膛线磨损会让同一门炮的初速在小数位上漂移，取整后
+  // 不同对局会命中同一份射表缓存 → 同 seed 的第二次运行复用了第一次的弹道，
+  // 造成"同一进程内跑两遍结果不同"的非确定性（实测命中 40 vs 30）。
   return shell.massKg.toFixed(1) + '|' + shell.caliberMM.toFixed(1) + '|' + shell.cd0.toFixed(3) + '|' +
-    shell.formFactor.toFixed(3) + '|' + mv.toFixed(0) + '|' + (shell.quality > 0.5 ? 'AP' : 'HE');
+    shell.formFactor.toFixed(3) + '|' + mv.toFixed(2) + '|' + (shell.quality > 0.5 ? 'AP' : 'HE');
 }
 const ELEV_STEPS = (() => {
   const out = [];
@@ -260,7 +263,8 @@ export function rangeTableFor(shell, mv) {
   const v = (mv === undefined || !isFinite(mv)) ? shell.mvMps : mv;
   const key = tableKey(shell, v);
   const hit = _tables.get(key);
-  if (hit) return hit;
+  // 命中缓存时再核对初速：万一仍撞车，宁可重算也不能让不同对局共用弹道表。
+  if (hit && Math.abs((hit.mv || 0) - v) < 0.01) return hit;
   const rows = [];
   let maxRow = null;
   for (const e of ELEV_STEPS) {

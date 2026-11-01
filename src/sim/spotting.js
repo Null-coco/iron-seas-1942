@@ -127,6 +127,13 @@ function resolveSalvoTarget(world, ship, rec) {
 // 评估一次齐射：落点 → 距离/方位偏差 → 夹叉 → 修正
 function evaluateSalvo(ship, world, rec) {
   const now = world.t;
+  // 只有主炮齐射参与主炮校射：副炮/近战炮的弹道与射程完全不同，混进来会让
+  // 梯次修正被 1~1.5 km 的副炮落点误差带跑（实测 3 km 上主炮仰角 ±0.3°、
+  // 落点 ±500 m 振荡，命中率反而低于远距）。副炮各自有局部解算，无需主梯次。
+  if ((rec.role || 'main') !== 'main') {
+    rec.observed = true; rec.observedAt = now;
+    return;
+  }
   const st = ensureSpotState(ship);
   const target = resolveSalvoTarget(world, ship, rec);
   const baseRange = target ? dist2d(ship.pos, target.pos) : toNumber(rec.rangeM, 15000);
@@ -236,7 +243,7 @@ function evaluateSalvo(ship, world, rec) {
   const dir = usableDirector(ship);
   // 校射修正落在指挥仪状态上（computeSolution 读取）
   // 校射偏置按【目标航迹】存取：换目标后不会把上一个目标的偏置套过来
-  const spotKey = (dir && dir._fc && dir._fc.trackId) || rec.trackId || rec.targetShipId || null;
+  const spotKey = 'MAIN|' + ((dir && dir._fc && dir._fc.trackId) || rec.trackId || rec.targetShipId || 'NA');
   const spot = fcSpotFor((dir && dir._fc) ? dir._fc : st, spotKey);
   let corrM = 0;
   if (Math.abs(smoothR) > deadR) corrM = clamp(-smoothR * gain, -400, 400);

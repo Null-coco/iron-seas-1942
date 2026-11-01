@@ -324,6 +324,23 @@ export function applyHit(world, rawHit) {
     else c = comps[rng.int(0, comps.length - 1)];
   }
   if (!c) return null;
+  // 甲板命中炮座/扬弹机上方：炮弹会沿扬弹通道钻入弹药库——胡德、玛丽女王的致命机理。
+  // 旧模型只按 x_frac 随机落舱，甲板弹几乎从不进弹药库，于是"胡德永远不会爆"。
+  if (hit.hitPart === 'DECK' && hit.x_frac !== undefined && (ship.mainBatteries || []).length) {
+    let nearBat = null, bd = 9e9;
+    for (const b of ship.mainBatteries) {
+      const dd = Math.abs((b.station_frac || 0) - hit.x_frac);
+      if (dd < bd) { bd = dd; nearBat = b; }
+    }
+    if (nearBat && bd <= 0.06) {
+      const mags = ship.compartments.filter((c2) => c2.isMagazine);
+      if (mags.length) {
+        let best = mags[0], bd2 = 9e9;
+        for (const m of mags) { const dd = Math.abs(m.x_frac - hit.x_frac); if (dd < bd2) { bd2 = dd; best = m; } }
+        c = best;
+      }
+    }
+  }
   ensureComp(c);
   const sideBias = sideBiasOf(hit, rng);
   const isMagazine = !!c.isMagazine;
@@ -720,7 +737,10 @@ function magazineDirectHit(world, ship, hit, c, d, sev, rng) {
   // 旧模型只靠"累积风险到 1"，需要 4~6 发弹药库命中——等于胡德永远不会爆。
   // 单发即引爆的现实量级：二战舰船防闪爆普遍完善，多数弹药库命中只是起火/进水。
   // 战史：日德兰式老式战巡（无防闪爆）约 1/4~1/3，二战新舰即便被打穿弹药库也多为烧毁而非爆。
-  const pDet = (protectedFlash ? 0.04 : 0.16) * clamp(sev, 0.4, 1.3);
+  // 大口径穿甲弹在弹药库内的起爆概率还取决于口径：15 吋级别的爆炸能量足以直接引燃发射药。
+  const cal = hit.caliberMM || 0;
+  const detScale = (cal >= 280 ? 1.5 : cal >= 190 ? 1.2 : 1.0);
+  const pDet = (protectedFlash ? 0.05 : 0.22) * detScale * clamp(sev, 0.4, 1.3);
   if (rng.chance(pDet)) { explodeMagazine(world, ship, c, d); return; }
   c.magRisk = clamp((c.magRisk || 0) + risk * clamp(sev, 0.3, 1.4), 0, 1.2);
   ev(world, ship, hit, 'dam.magazine', {

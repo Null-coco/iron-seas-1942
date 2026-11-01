@@ -622,6 +622,20 @@ export class World {
         return opp >= (c.n || 1);
       }
       case 'SURVIVE': return this.t >= (c.seconds || 600) && this.afloatOf(o.side).length > 0;
+      case 'DISENGAGE': {
+        // 脱离接触：本方仍有舰在航，且连续 N 秒内最近敌舰都 > distanceM → 视为成功撤离。
+        // 用于"放弃任务/撤回基地"类剧本：旧 EXIT 区域常在 100 km 外，40 分钟的战斗根本走不到，
+        // 于是轴心在这些剧本里从结构上就无法获胜（马塔潘、科曼多尔、苏里高）。
+        const own = this.shipsOf(o.side).filter((s) => s.isAfloat);
+        if (!own.length) return false;
+        const foes = this.shipsOf(this.opposite(o.side)).filter((s) => s.isAfloat);
+        if (!foes.length) return true;
+        let minD = Infinity;
+        for (const a of own) for (const b of foes) minD = Math.min(minD, dist2d(a.pos, b.pos));
+        if (minD < (c.distanceM || 25000)) { this._disengageT = null; return false; }
+        if (this._disengageT === undefined || this._disengageT === null) this._disengageT = this.t;
+        return (this.t - this._disengageT) >= (c.seconds || 600);
+      }
       case 'EXIT': {
         const area = c.area || { x: 0, y: 0, r: 3000 };
         const ships = this.shipsOf(o.side).filter((s) => s.isAfloat);

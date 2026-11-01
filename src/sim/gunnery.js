@@ -520,7 +520,9 @@ export function computeSolution(ship, director, track, world) {
     const lateralDrift = windDrift + spinDrift;
     if (range > 1) bearing = normDeg(bearing - rad2deg(lateralDrift / range));
     // 校射修正（取当前目标航迹自己的偏置）
-    const spotNow = fcSpotFor(st, (track && track.id) ? track.id : st.trackId);
+    // 校射偏置按【主炮】隔离：副炮/近战炮的落点不能污染主炮梯次
+    const spotKey = 'MAIN|' + ((track && track.id) ? track.id : st.trackId);
+    const spotNow = fcSpotFor(st, spotKey);
     bearing = normDeg(bearing + spotNow.deflBiasMil * MIL_DEG);
     // 纵风修正：弹丸被气流携带 ≈ w_along * TOF（顺风加射程），火控按气象修正
     const alongDrift = alongWindMps(world, bearing) * tof * 0.85;
@@ -688,6 +690,61 @@ export function fireSalvo(ship, battery, solution, world, opts = {}) {
   const ammoWant = opts.ammo || (solution && solution.ammo) || 'AP';
   const ammo = pickAmmo(battery, ammoWant) || opts.ammo;
   if (!ammo) return { fired: 0, salvoId: opts.salvoId || null };
+  const lightNow = (world.env && world.env.lightLevel !== undefined) ? world.env.lightLevel : 1;
+  // —— 射界安全：不得穿过僚舰开火 ——
+  // 实测沙盒 604：阳炎在 400-600m 上把旗舰大和打成了筛子（8 发 127mm）——
+  // 航迹瞄准的是更远的敌舰，大和正好在射界上。真实舰长不会隔着僚舰开炮。
+  if (lightNow > 0.45 && solution && Number.isFinite(solution.bearingDeg) && Number.isFinite(solution.rangeM)) {
+    const brg = solution.bearingDeg * Math.PI / 180;
+    const ux = Math.sin(brg), uy = Math.cos(brg);
+    const maxR = solution.rangeM;
+    let blockedBy = null, blockD = 1e9;
+    for (const f of world.ships) {
+      if (!f.isAfloat || f.side !== ship.side || f.id === ship.id) continue;
+      const dx = f.pos.x - ship.pos.x, dy = f.pos.y - ship.pos.y;
+      const along = dx * ux + dy * uy;
+      const cross = Math.abs(dx * uy - dy * ux);
+      if (along < 80 || along > maxR - 80) continue;
+      if (cross <= 170 && along < blockD) { blockD = along; blockedBy = f; }
+    }
+    if (blockedBy) {
+      if (!ship._losHoldNotified) {
+        ship._losHoldNotified = true;
+        world.events.emit('fc.update', {
+          t: world.t, ship: ship.id, side: ship.side, kind: 'TARGET_FRIENDLY',
+          trackId: solution.trackId || null,
+          text: '射界被僚舰 ' + blockedBy.name + ' 遮挡（' + Math.round(blockD) + 'm），拒绝开火',
+        });
+      }
+      return { fired: 0, salvoId: opts.salvoId || null };
+    }
+  }
+  // —— 日间近距开火安全闸（主炮/副炮统一）——
+  // 火控解算指向的航迹若就贴在一艘已知友舰上（≤220m），白天目视不可能认错：
+  // 拒绝射击。夜间/烟幕保留 A2 的识别不确定性（误伤仍是战争的一部分）。
+  if (lightNow > 0.45 && solution && (solution.trackId || solution.targetShipId)) {
+    const tr = solution.trackId ? world.tracks.byId(solution.trackId) : null;
+    const probePos = tr ? tr.pos : (solution.targetShipId ? (world.ship(solution.targetShipId) || {}).pos : null);
+    if (probePos) {
+      let nearFriend = null, bd = 1e9;
+      for (const f of world.ships) {
+        if (!f.isAfloat || f.side !== ship.side || f.id === ship.id) continue;
+        const dd = dist2d(f.pos, probePos);
+        if (dd < bd) { bd = dd; nearFriend = f; }
+      }
+      if (nearFriend && bd <= 220) {
+        if (!ship._safetyHoldNotified) {
+          ship._safetyHoldNotified = true;
+          world.events.emit('fc.update', {
+            t: world.t, ship: ship.id, side: ship.side, kind: 'TARGET_FRIENDLY',
+            trackId: solution.trackId || null,
+            text: '日间近距：射击航迹即僚舰 ' + nearFriend.name + '（' + Math.round(bd) + 'm），拒绝开火',
+          });
+        }
+        return { fired: 0, salvoId: opts.salvoId || null };
+      }
+    }
+  }
   const shell = makeShell(ship, battery, ammo);
   const mv = effectiveMv(battery, shell, fc ? fc.powderTempC : 21);
   const nGuns = Math.max(1, battery.gunsPerMount || 1);
@@ -876,6 +933,7 @@ function tryFire(ship, world, dt, primary, targetShip, track, opts = {}) {
   if (!world.salvoes) world.salvoes = new Map();
   const rec = {
     id: salvoId, t: now, tFire: now, shooterId: ship.id, shipId: ship.id, side: ship.side,
+    role: role || 'main',
     targetShipId: targetShip ? targetShip.id : null, trackId: track ? track.id : null,
     aimRangeM: Math.round(ready[0].sol.rangeM), rangeM: Math.round(ready[0].sol.rangeM),
     aimBearingDeg: +ready[0].sol.bearingDeg.toFixed(2),
@@ -1010,6 +1068,37 @@ export function updateFireControl(ship, world, dt) {
     track = null;
   } else if (track) {
     ship._friendlyHoldNotified = false;
+  }
+  // —— 日间近距编队识别：航迹贴着一艘已知友舰（≤220m）时，目视不可能认错 ——
+  // 夜间/烟幕保留 A2 的"误伤是战争的一部分"；但白天 400-600m 上把自己的僚舰当目标打
+  // （实测沙盒 604：阳炎 400-600m 对旗舰大和打出 7 发 127mm）不是识别不确定，是 bug。
+  if (track && !(cmd.overrideFriendly === true)) {
+    const light = (world.env && world.env.lightLevel !== undefined) ? world.env.lightLevel : 1;
+    if (light > 0.45) {
+      let nearFriend = null, bd = 1e9;
+      for (const f of world.ships) {
+        if (!f.isAfloat || f.side !== ship.side || f.id === ship.id) continue;
+        const dd = dist2d(f.pos, track.pos);
+        if (dd < bd) { bd = dd; nearFriend = f; }
+      }
+      if (nearFriend && bd <= 220) {
+        if (ship.commanded && ship.commanded.firing) {
+          ship.commanded.firing = false;
+          if (!ship._formationFriendlyNotified) {
+            ship._formationFriendlyNotified = true;
+            world.events.emit('fc.update', {
+              t: now, ship: ship.id, side: ship.side, kind: 'TARGET_FRIENDLY',
+              trackId: track.id, text: '日间近距：航迹即僚舰 ' + nearFriend.name + '（' + Math.round(bd) + 'm），停止射击',
+              foeConfidence: track.foeConfidence !== undefined ? +track.foeConfidence.toFixed(2) : null,
+              idSource: track.idSource || 'NONE',
+            });
+          }
+        }
+        track = null;
+      } else if (ship._formationFriendlyNotified) {
+        ship._formationFriendlyNotified = false;
+      }
+    }
   }
   const trackFresh = !!(track && (track.ageS === undefined || track.ageS < 60));
   let targetShip = trackFresh ? resolveTargetShip(world, ship, track) : null;
