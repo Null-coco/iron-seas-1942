@@ -25,7 +25,7 @@
 
 ## 2. 快速开始
 
-要求：Node.js 18+（开发用 v24.21.0）。本机 Node 不在 PATH 时用 `NODE_BIN` 指定。
+要求：Node.js **≥ 22**（开发用 v24.21.0；Node 20 下 `test/t5.ai.test.mjs` 的服务器中继用例会自动跳过而不是失败）。本机 Node 不在 PATH 时用 `NODE_BIN` 指定。
 
 ```sh
 # 方式一：启动脚本（默认 http://127.0.0.1:8787）

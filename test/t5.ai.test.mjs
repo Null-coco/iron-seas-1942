@@ -431,96 +431,100 @@ async function sseReadUntil(reader, pred, label, timeoutMs = 5000) {
   }
 }
 
-test('server: HTTP API + WebSocket 中继 + SSE + LLM 代理 + 回放导出', async () => {
+test('server: HTTP API + WebSocket 中继 + SSE + LLM 代理 + 回放导出', {
+  // 全局 WebSocket 自 Node 22 起稳定提供；Node 20 下跳过（而不是让用例失败后把进程挂死）
+  skip: typeof WebSocket === 'undefined' ? '需要 Node ≥ 22（内置全局 WebSocket）' : false,
+}, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'iron-seas-t5-'));
   const g = createGameServer({ root: ROOT, port: 0, host: '127.0.0.1', mock: true, quiet: true, token: '', replayDir: tmp, dataDir: path.join(ROOT, 'data') });
-  const info = await g.listen({ port: 0 });
-  const base = 'http://127.0.0.1:' + info.port;
-  const sim = await openWS('ws://127.0.0.1:' + info.port + '/ws?role=sim');
-  const world = makeWorld();
-  // agent 角色：submitDecision 把决策发往服务器；sim 角色：把收到的决策注入世界
-  const agentAi = new AICommander('AXIS', world, { backend: 'REMOTE', role: 'agent', minDecisionIntervalS: 0, stateIntervalS: 60 });
-  const agent = trackWS(agentAi.connectWebSocket('ws://127.0.0.1:' + info.port + '/ws?role=agent&side=AXIS', { role: 'agent' }));
+  let sim = null, agent = null;
   try {
-    await waitFor(() => agent.readyState === 1, 'agent WS open');
+    const info = await g.listen({ port: 0 });
+    const base = 'http://127.0.0.1:' + info.port;
+    sim = await openWS('ws://127.0.0.1:' + info.port + '/ws?role=sim');
+    const world = makeWorld();
+    // agent 角色：submitDecision 把决策发往服务器；sim 角色：把收到的决策注入世界
+    const agentAi = new AICommander('AXIS', world, { backend: 'REMOTE', role: 'agent', minDecisionIntervalS: 0, stateIntervalS: 60 });
+    agent = trackWS(agentAi.connectWebSocket('ws://127.0.0.1:' + info.port + '/ws?role=agent&side=AXIS', { role: 'agent' }));
+      await waitFor(() => agent.readyState === 1, 'agent WS open');
 
-    // --- sim 推送可见态势 → 服务器只转给该方智能体 ---
-    sim.send(JSON.stringify({ type: 'state', side: 'AXIS', t: 12.5, payload: { t: 12.5, tracks: [{ id: 'T9', bearingDeg: 80, rangeM: 9000, classifiedAs: 'DD' }], ownShips: [] } }));
-    const gotState = await waitFor(() => agent._msgs.find((m) => m.type === 'state'), 'agent 收到 state');
-    assert.equal(gotState.payload.tracks[0].id, 'T9');
-    await waitFor(() => agentAi.lastPeerState && agentAi.lastPeerState.t === 12.5, 'ai.lastPeerState 更新');
+      // --- sim 推送可见态势 → 服务器只转给该方智能体 ---
+      sim.send(JSON.stringify({ type: 'state', side: 'AXIS', t: 12.5, payload: { t: 12.5, tracks: [{ id: 'T9', bearingDeg: 80, rangeM: 9000, classifiedAs: 'DD' }], ownShips: [] } }));
+      const gotState = await waitFor(() => agent._msgs.find((m) => m.type === 'state'), 'agent 收到 state');
+      assert.equal(gotState.payload.tracks[0].id, 'T9');
+      await waitFor(() => agentAi.lastPeerState && agentAi.lastPeerState.t === 12.5, 'ai.lastPeerState 更新');
 
-    // --- sim 请求决策 → 智能体提交 → 中继回 sim ---
-    sim.send(JSON.stringify({ type: 'request_decision', side: 'AXIS', t: 12.6, state: { t: 12.6, tracks: [] } }));
-    await waitFor(() => agent._msgs.some((m) => m.type === 'request_decision'), 'agent 收到 request_decision');
-    const sentCmds = agentAi.submitDecision({ commands: [{ kind: 'SET_COURSE', params: { heading: 270 } }], reasoning: '转向接敌' });
-    assert.equal(sentCmds.length, 1);
-    const relayed = await waitFor(() => sim._msgs.find((m) => m.type === 'commands'), 'sim 收到 commands');
-    assert.equal(relayed.side, 'AXIS');
-    assert.equal(relayed.commands[0].kind, 'SET_COURSE');
+      // --- sim 请求决策 → 智能体提交 → 中继回 sim ---
+      sim.send(JSON.stringify({ type: 'request_decision', side: 'AXIS', t: 12.6, state: { t: 12.6, tracks: [] } }));
+      await waitFor(() => agent._msgs.some((m) => m.type === 'request_decision'), 'agent 收到 request_decision');
+      const sentCmds = agentAi.submitDecision({ commands: [{ kind: 'SET_COURSE', params: { heading: 270 } }], reasoning: '转向接敌' });
+      assert.equal(sentCmds.length, 1);
+      const relayed = await waitFor(() => sim._msgs.find((m) => m.type === 'commands'), 'sim 收到 commands');
+      assert.equal(relayed.side, 'AXIS');
+      assert.equal(relayed.commands[0].kind, 'SET_COURSE');
 
-    // 服务器 → 游戏：sim 宿主用 handleMessage 注入世界（含指挥延迟与舰队展开）
-    const hostWorld = makeWorld();
-    const host = new AICommander('AXIS', hostWorld, { backend: 'REMOTE', role: 'sim', minDecisionIntervalS: 0 });
-    host.handleMessage(relayed);
-    assert.ok(hostWorld.commands.some((c) => c.kind === 'SET_COURSE' && c.params.heading === 270));
-    assert.ok(hostWorld.commands.every((c) => c.source === 'AI_REMOTE'));
+      // 服务器 → 游戏：sim 宿主用 handleMessage 注入世界（含指挥延迟与舰队展开）
+      const hostWorld = makeWorld();
+      const host = new AICommander('AXIS', hostWorld, { backend: 'REMOTE', role: 'sim', minDecisionIntervalS: 0 });
+      host.handleMessage(relayed);
+      assert.ok(hostWorld.commands.some((c) => c.kind === 'SET_COURSE' && c.params.heading === 270));
+      assert.ok(hostWorld.commands.every((c) => c.source === 'AI_REMOTE'));
 
-    // --- 心跳/ping → pong ---
-    agentAi.sendHeartbeat();
-    await waitFor(() => agent._msgs.some((m) => m.type === 'pong'), 'agent 收到 pong');
+      // --- 心跳/ping → pong ---
+      agentAi.sendHeartbeat();
+      await waitFor(() => agent._msgs.some((m) => m.type === 'pong'), 'agent 收到 pong');
 
-    // --- HTTP 注入命令（SSE 客户端的写通道） ---
-    const ordResp = await fetch(base + '/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ side: 'AXIS', commands: [{ kind: 'CEASE_FIRE', params: {} }] }) });
-    const ord = await ordResp.json();
-    assert.equal(ord.ok, true);
-    assert.ok(ord.delivered >= 1);
-    await waitFor(() => sim._msgs.find((m) => m.type === 'commands' && m.commands[0].kind === 'CEASE_FIRE'), 'sim 收到 HTTP 注入命令');
+      // --- HTTP 注入命令（SSE 客户端的写通道） ---
+      const ordResp = await fetch(base + '/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ side: 'AXIS', commands: [{ kind: 'CEASE_FIRE', params: {} }] }) });
+      const ord = await ordResp.json();
+      assert.equal(ord.ok, true);
+      assert.ok(ord.delivered >= 1);
+      await waitFor(() => sim._msgs.find((m) => m.type === 'commands' && m.commands[0].kind === 'CEASE_FIRE'), 'sim 收到 HTTP 注入命令');
 
-    // --- SSE 只读流 ---
-    const ac = new AbortController();
-    const sseResp = await fetch(base + '/api/stream?role=agent&side=AXIS', { signal: ac.signal });
-    assert.ok((sseResp.headers.get('content-type') || '').includes('text/event-stream'));
-    const reader = sseResp.body.getReader();
-    await sseReadUntil(reader, (b) => b.includes('event: hello'), 'SSE hello');
-    sim.send(JSON.stringify({ type: 'state', side: 'AXIS', t: 99, payload: { t: 99, tracks: [] } }));
-    await sseReadUntil(reader, (b) => b.includes('event: state') && b.includes('"t":99'), 'SSE state');
-    ac.abort();
+      // --- SSE 只读流 ---
+      const ac = new AbortController();
+      const sseResp = await fetch(base + '/api/stream?role=agent&side=AXIS', { signal: ac.signal });
+      assert.ok((sseResp.headers.get('content-type') || '').includes('text/event-stream'));
+      const reader = sseResp.body.getReader();
+      await sseReadUntil(reader, (b) => b.includes('event: hello'), 'SSE hello');
+      sim.send(JSON.stringify({ type: 'state', side: 'AXIS', t: 99, payload: { t: 99, tracks: [] } }));
+      await sseReadUntil(reader, (b) => b.includes('event: state') && b.includes('"t":99'), 'SSE state');
+      ac.abort();
 
-    // --- health / scenarios / agents ---
-    const health = await (await fetch(base + '/api/health')).json();
-    assert.equal(health.ok, true);
-    assert.ok(health.clients.sim >= 1);
-    assert.equal(health.llm.mock, true);
-    assert.ok(!JSON.stringify(health).includes('"apiKey"'));
-    const scen = await (await fetch(base + '/api/scenarios')).json();
-    assert.equal(scen.ok, true);
-    assert.ok(scen.scenarios.length >= 1);
-    const agents = await (await fetch(base + '/api/agents')).json();
-    assert.ok(agents.agents.length >= 2);
+      // --- health / scenarios / agents ---
+      const health = await (await fetch(base + '/api/health')).json();
+      assert.equal(health.ok, true);
+      assert.ok(health.clients.sim >= 1);
+      assert.equal(health.llm.mock, true);
+      assert.ok(!JSON.stringify(health).includes('"apiKey"'));
+      const scen = await (await fetch(base + '/api/scenarios')).json();
+      assert.equal(scen.ok, true);
+      assert.ok(scen.scenarios.length >= 1);
+      const agents = await (await fetch(base + '/api/agents')).json();
+      assert.ok(agents.agents.length >= 2);
 
-    // --- LLM 代理（mock）---
-    const lr = await fetch(base + '/api/llm/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: '请输出 JSON commands' }] }) });
-    const lj = await lr.json();
-    assert.equal(lr.status, 200);
-    assert.ok(lj.choices[0].message.content.includes('SET_COURSE'));
-    assert.ok(!JSON.stringify(lj).toLowerCase().includes('sk-'));
+      // --- LLM 代理（mock）---
+      const lr = await fetch(base + '/api/llm/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: '请输出 JSON commands' }] }) });
+      const lj = await lr.json();
+      assert.equal(lr.status, 200);
+      assert.ok(lj.choices[0].message.content.includes('SET_COURSE'));
+      assert.ok(!JSON.stringify(lj).toLowerCase().includes('sk-'));
 
-    // --- 回放导出（POST /api/replay）---
-    const replay = { version: 1, scenario: 't5_skirmish', seed: 19420604, endedAt: 42, snapshots: [{ t: 0 }], events: [{ type: 'sim.start', t: 0 }], commands: [], result: { over: true, winner: 'ALLIED', text: '测试' } };
-    const rr = await fetch(base + '/api/replay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(replay) });
-    const rj = await rr.json();
-    assert.equal(rj.ok, true);
-    assert.ok(rj.id && rj.bytes > 0);
-    const dl = await fetch(base + '/api/replay?id=' + rj.id);
-    const dlj = await dl.json();
-    assert.equal(dlj.scenario, 't5_skirmish');
-    assert.equal(dlj.result.winner, 'ALLIED');
-    const list = await (await fetch(base + '/api/replay')).json();
-    assert.ok(list.replays.some((x) => x.id === rj.id));
+      // --- 回放导出（POST /api/replay）---
+      const replay = { version: 1, scenario: 't5_skirmish', seed: 19420604, endedAt: 42, snapshots: [{ t: 0 }], events: [{ type: 'sim.start', t: 0 }], commands: [], result: { over: true, winner: 'ALLIED', text: '测试' } };
+      const rr = await fetch(base + '/api/replay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(replay) });
+      const rj = await rr.json();
+      assert.equal(rj.ok, true);
+      assert.ok(rj.id && rj.bytes > 0);
+      const dl = await fetch(base + '/api/replay?id=' + rj.id);
+      const dlj = await dl.json();
+      assert.equal(dlj.scenario, 't5_skirmish');
+      assert.equal(dlj.result.winner, 'ALLIED');
+      const list = await (await fetch(base + '/api/replay')).json();
+      assert.ok(list.replays.some((x) => x.id === rj.id));
   } finally {
-    try { agent.close(); } catch { /* ignore */ }
-    try { sim.close(); } catch { /* ignore */ }
+    try { if (agent) agent.close(); } catch { /* ignore */ }
+    try { if (sim) sim.close(); } catch { /* ignore */ }
     await g.close();
     fs.rmSync(tmp, { recursive: true, force: true });
   }

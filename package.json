@@ -13,5 +13,8 @@
     "uicheck": "node tools/uicheck.mjs --suite",
     "analyze": "node tools/replay-analyzer.mjs",
     "analyze:build": "node tools/build-replay-analyzer-html.mjs"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }
