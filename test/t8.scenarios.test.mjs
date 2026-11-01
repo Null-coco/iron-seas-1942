@@ -65,7 +65,7 @@ console.log('剧本文件: data/scenarios.json   剧本数: ' + list.length);
 console.log('舰船数据: ' + dbObjs.length + ' 个文件, ' + db.list.length + ' 艘');
 if (dataPending) console.log('\n\u23f3 PENDING DATA（等待舰船数据落盘）: ' + pendingReasons.join('; '));
 
-const VALID_COND = new Set(['SINK', 'SINK_ANY', 'DISABLE', 'SINK_COUNT', 'SURVIVE', 'EXIT', 'PROTECT']);
+const VALID_COND = new Set(['SINK', 'SINK_ANY', 'DISABLE', 'SINK_COUNT', 'SURVIVE', 'EXIT', 'DISENGAGE', 'PROTECT']);
 const VALID_SIDES = new Set(['ALLIED', 'AXIS']);
 const VALID_ROLES = new Set(['flagship', 'line', 'screen']);
 const EXPECTED_NIGHT = new Set(['savo_island_1942', 'first_guadalcanal_1942', 'surigao_strait_1944', 'north_cape_1943', 'matapan_1941']);

@@ -292,4 +292,23 @@ test('T23.8 新检测项：单舰静默 / FIRE 空转 / 鱼雷低效 / 序号缺
   assert.match(silent.detail, /3 km/);
 });
 
+test('T23.9 已全员撤离后的停火不算 SIDE_SILENCE', () => {
+  const ev = [];
+  let seq = 0;
+  const E = (o) => { seq += 1; ev.push(Object.assign({ seq }, o)); };
+  E({ type: 'sim.start', t: 0, scenario: 'wd_test', seed: 2 });
+  E({ type: 'gun.fire', t: 10, ship: 'a1', name: '甲舰', side: 'ALLIED', ammo: 'HE', caliberMM: 127 });
+  E({ type: 'gun.fire', t: 20, ship: 'a1', name: '甲舰', side: 'ALLIED', ammo: 'HE', caliberMM: 127 });
+  E({ type: 'order.issue', t: 30, cmd: { id: 'w1', side: 'ALLIED', shipId: 'a1', kind: 'WITHDRAW', params: {} } });
+  E({ type: 'order.issue', t: 31, cmd: { id: 'w2', side: 'ALLIED', shipId: 'a1', kind: 'CEASE_FIRE', params: {} } });
+  const snap = { t: 0, ships: [{ id: 'a1', x: 0, y: 0, hd: 0, sp: 10, list: 0, fl: 0, af: true, fires: 0 }] };
+  const replay = {
+    version: 1, scenario: 'wd_test', seed: 2, startedAt: 0, endedAt: 900,
+    snapshots: [snap], events: ev, commands: [], result: { over: false, winner: null, text: '' },
+    retention: { limit: 60000, totalEmitted: ev.length, history: ev.length, droppedNoise: 0, droppedCritical: 0 },
+  };
+  const model = analyzeReplay(replay);
+  assert.ok(!model.findings.some((f) => f.code === 'SIDE_SILENCE'), '撤离后的静默不应报 SIDE_SILENCE');
+});
+
 test.after(() => { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* ignore */ } });

@@ -507,7 +507,10 @@ function buildFindings(m) {
 
   for (const [sid, sil] of Object.entries(silence)) {
     if (!sil.last) continue;
-    const alive = sides[sid] ? sides[sid].ships.filter((id) => { const s = ships.get(id); return !(s.sank || s.lost); }).length : 0;
+    const afloatShips = sides[sid] ? sides[sid].ships.map((id) => ships.get(id)).filter((s) => s && !(s.sank || s.lost)) : [];
+    const alive = afloatShips.length;
+    // 全队已奉命撤离（或已在撤离途中）后的停火是条令，不是故障：不要报成"静默"
+    if (afloatShips.length && afloatShips.every((s) => s.withdrew) && sil.silentNow) continue;
     if (alive > 0 && sil.gap >= Math.max(120, meta.duration * 0.15)) {
       add('SIDE_SILENCE', 'major',
         sideZh(sid) + ' 有 ' + Math.round(sil.gap) + ' 秒一炮未发',

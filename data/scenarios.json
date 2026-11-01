@@ -318,6 +318,16 @@
           },
           "result": "AXIS",
           "text": "击沉同盟国主力舰，打开大西洋通道"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "DISENGAGE",
+            "distanceM": 30000,
+            "seconds": 600
+          },
+          "result": "AXIS",
+          "text": "Bismarck 与追击舰队脱离接触，突入大西洋"
         }
       ],
       "_requiredClasses": [
@@ -458,6 +468,16 @@
           },
           "result": "AXIS",
           "text": "击沉同盟国主力舰，打开大西洋通道"
+        },
+        {
+          "side": "AXIS",
+          "condition": {
+            "type": "DISENGAGE",
+            "distanceM": 30000,
+            "seconds": 600
+          },
+          "result": "AXIS",
+          "text": "Bismarck 与追击舰队脱离接触，突入大西洋"
         }
       ],
       "_requiredClasses": [
@@ -1508,13 +1528,9 @@
         {
           "side": "AXIS",
           "condition": {
-            "type": "EXIT",
-            "area": {
-              "x": 11000,
-              "y": 122000,
-              "r": 8000
-            },
-            "any": true
+            "type": "DISENGAGE",
+            "distanceM": 30000,
+            "seconds": 900
           },
           "result": "AXIS",
           "text": "突入莱特湾与栗田舰队会合"
@@ -2293,13 +2309,9 @@
         {
           "side": "AXIS",
           "condition": {
-            "type": "EXIT",
-            "area": {
-              "x": -120000,
-              "y": 66000,
-              "r": 12000
-            },
-            "any": true
+            "type": "DISENGAGE",
+            "distanceM": 25000,
+            "seconds": 600
           },
           "result": "AXIS",
           "text": "主力（含 Vittorio Veneto）撤回塔兰托方向"
@@ -2556,13 +2568,9 @@
         {
           "side": "AXIS",
           "condition": {
-            "type": "EXIT",
-            "area": {
-              "x": 0,
-              "y": 66600,
-              "r": 10000
-            },
-            "any": true
+            "type": "DISENGAGE",
+            "distanceM": 22000,
+            "seconds": 900
           },
           "result": "AXIS",
           "text": "运输船团安全抵达阿图岛（向北突破）"
